@@ -1,0 +1,429 @@
+---
+title: "Untitled"
+author: "Wes Bickford"
+date: "9/19/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(igraph)
+library(dplyr)
+
+```
+
+
+```{r cars}
+g1 <- graph(edges = c(1,2,2,3,3,1), n=3, directed = F)
+plot(g1)
+
+g2 <- graph(edges = c(1,2,2,3,3,1), n=10)
+plot(g2)
+```
+
+
+```{r pressure, echo=FALSE}
+g4 <- graph(c("John", "Jim", "Jim", "Jack", "Jim", "Jack", "John", "John"), isolates = c("Jesse", "Janis", "Jennifer", "Justin"))
+plot(g4)
+g4[]
+```
+
+```{r empty graph}
+eg <- make_empty_graph(40)
+plot(eg)
+```
+
+```{r full graph}
+fg <- make_full_graph(40)
+plot(fg)
+```
+
+```{r read data}
+nodes <- read.csv("Dataset1-Media-Example-NODES.csv", header=T, as.is=T)
+links <- read.csv("Dataset1-Media-Example-EDGES.csv", header=T, as.is=T)
+links <- aggregate(links[ ,3], links[ ,-3], sum)
+links <- links[order(links$from, links$to), ]
+colnames(links)[4] <- "weight"
+rownames(links) <- NULL
+```
+
+```{r dataset 2}
+nodes2 <- read.csv("Dataset2-Media-User-Example-NODES.csv", header=T, as.is=T)
+links2 <- read.csv("Dataset2-Media-User-Example-EDGES.csv", header=T, row.names = 1)
+
+
+```
+
+```{r graphing networks}
+net <- graph_from_data_frame(d=links, vertices=nodes, directed=F) 
+
+plot(net)
+
+```
+
+```{r communities}
+ceb <- cluster_edge_betweenness(net)
+plot(ceb, net)
+```
+
+create a data frame of nodes and links
+nodes would be a list of all fungal and bacterial otus indicating their phylum?
+how to create the links?
+
+```{r calculating correlations, echo = F, include = F}
+
+bac_otus <- read.table(file = "~/git_repos/Root_bacterial/data/Bickford.subsample.shared", header = T)
+rownames(bac_otus) <- bac_otus$Group
+bac_otus <- bac_otus[ , -c(1,3)]
+colnames(bac_otus) <- paste("B_", colnames(bac_otus))
+
+
+bac_nat <- bac_otus[grep("Nat", rownames(bac_otus)), ]
+bac_inv <- bac_otus[grep("Inv", rownames(bac_otus)), ]
+
+#Which otus are present at greater than 20% of all samples?
+
+zeros <- apply(bac_nat == 0, 2, sum)
+pres <- 1 - (zeros / nrow(bac_nat))
+ab_taxa <- pres[pres >= 0.2]
+ab_nat_bac <- bac_nat[ , names(ab_taxa)]
+
+zeros <- apply(bac_inv == 0, 2, sum)
+pres <- 1 - (zeros / nrow(bac_inv))
+ab_taxa <- pres[pres >= 0.2]
+ab_inv_bac <- bac_inv[ , names(ab_taxa)]
+
+# Fungi
+fun_otus <- read.table(file = "~/git_repos/Root_ITS/data/Bickford.subsample.shared", header = T)
+rownames(fun_otus) <- fun_otus$Group
+fun_otus <- fun_otus[ , -c(1,3)]
+colnames(fun_otus) <- paste("F_", colnames(fun_otus), collapse = NULL)
+
+fun_nat <- fun_otus[grep("Nat", rownames(fun_otus)), ]
+fun_inv <- fun_otus[grep("Inv", rownames(fun_otus)), ]
+
+zeros <- apply(fun_nat == 0, 2, sum)
+pres <- 1 - (zeros / nrow(fun_nat))
+ab_taxa <- pres[pres >= 0.2]
+ab_nat_fun <- fun_nat[ , names(ab_taxa)]
+
+zeros <- apply(fun_inv == 0, 2, sum)
+pres <- 1 - (zeros / nrow(fun_inv))
+ab_taxa <- pres[pres >= 0.2]
+ab_inv_fun <- fun_inv[ , names(ab_taxa)]
+
+all_inv <- inner_join(ab_inv_bac, ab_inv_fun, by = c("B_ Group" = "F_ Group"))
+all_nat <- inner_join(ab_nat_bac, ab_nat_fun, by = c("B_ Group" = "F_ Group"))
+
+rownames(all_inv) <- all_inv[ ,"B_ Group"]
+all_inv <- all_inv[ , -1]
+rownames(all_nat) <- all_nat[ ,"B_ Group"]
+all_nat <- all_nat[ , -1]
+
+#for loop calculating spearman's rho for each
+nat_cors <- matrix(ncol = ncol(all_nat), nrow = ncol(all_nat))
+rownames(nat_cors) <- colnames(all_nat)
+colnames(nat_cors) <- colnames(all_nat)
+
+for(i in colnames(all_nat)){
+  x <- all_nat[ , i]
+  for(j in colnames(all_nat)){
+    y <- all_nat[ , j]
+    if(i == j){
+      rho <- 1
+      nat_cors[i,j] <- rho
+    }else{
+      spear <- cor(x, y, method = "spearman")
+      nat_cors[i,j] <- spear
+    }
+  }
+}
+
+inv_cors <- matrix(ncol = ncol(all_inv), nrow = ncol(all_inv))
+rownames(inv_cors) <- colnames(all_inv)
+colnames(inv_cors) <- colnames(all_inv)
+
+for(i in colnames(all_inv)){
+  x <- all_inv[ , i]
+  for(j in colnames(all_inv)){
+    y <- all_inv[ , j]
+    if(i == j){
+      rho <- 1
+      inv_cors[i,j] <- rho
+    }else{
+      spear <- cor.test(x, y, method = "spearman", continuity = F, conf.level = F, exact = F)
+      rho <- spear$estimate
+      names(rho) <- NULL
+    inv_cors[i,j] <- rho
+    
+    }
+  }
+  cat("row", i, "\n")
+}
+
+```
+
+```{r make 3 col matrix, echo = F, include = F}
+library(reshape2)
+cor.nat <- melt(nat_cors)[melt(upper.tri(nat_cors))$value, ]
+cor.inv <- melt(inv_cors)[melt(upper.tri(inv_cors))$value, ]
+
+```
+Use this 3 column matrix to make networks. First we will separate positive correlations from negative
+
+```{r create null model, echo = F, include = F}
+# create a random community matrix with same number of samples and otus.
+# OTU abundances should reflect reality within each 
+# OTU sequence abundance should reflect my dataset
+
+nullmat <- matrix(NA, ncol = ncol(all_inv), nrow = nrow(all_inv))
+sites <- rep("SITE", nrow(nullmat))
+OTUS <- rep("OTU", ncol(nullmat))
+siteno <- c(1:length(sites))
+otuno <- c(1:length(OTUS))
+
+sites <- paste(sites, siteno, sep = "")
+OTUS <- paste(OTUS, otuno, sep = "")
+colnames(nullmat) <- OTUS
+rownames(nullmat) <- sites
+
+absence <- apply(all_inv == 0, 2, sum)
+presence <- 1 - (absence / nrow(all_inv))
+mean_pres <- mean(presence)
+sd_pres <- sd(presence)
+
+ncells <- nrow(nullmat)
+distr <- all_inv[all_inv > 0]
+evil_distr <- distr*-1
+distr <- c(evil_distr,distr)
+mean_d <- mean(distr)
+sd_d <- sd(distr)
+
+
+for(t in colnames(nullmat)){
+  prop <- rnorm(1, mean = mean_pres, sd = sd_pres)
+  while(prop < 0){
+    prop <- rnorm(1, mean = mean_pres, sd = sd_pres)
+  }
+  vec <- rbinom(ncells, 1, prop)
+  nullmat[ , t] <- vec
+}
+
+for(i in colnames(nullmat)){
+  for(ii in rownames(nullmat)){
+    if(nullmat[ii, i] == 1){
+      val <- round(abs(rnorm(1, mean = mean_d, sd = sd_d)))
+      while(val == 0){
+        val <- round(abs(rnorm(1, mean = mean_d, sd = sd_d)))
+      }
+      nullmat[ii,i] <- val
+    }
+  }
+}
+
+null_cors <- matrix(ncol = ncol(nullmat), nrow = ncol(nullmat))
+rownames(null_cors) <- colnames(nullmat)
+colnames(null_cors) <- colnames(nullmat)
+
+for(i in colnames(nullmat)){
+  x <- nullmat[ , i]
+  for(j in colnames(nullmat)){
+    y <- nullmat[ , j]
+    if(i == j){
+      rho <- 1
+      null_cors[i,j] <- rho
+    }else{
+      spear <- cor(x, y, method = "spearman")
+      null_cors[i,j] <- spear
+    }
+  }
+}
+
+cor.null <- melt(null_cors)[melt(upper.tri(null_cors))$value, ]
+
+hist(cor.null$value)
+
+keep_mn <- mean(cor.null$value)
+keep_sd <- sd(cor.null$value)
+
+```
+
+
+
+```{r import taxonomy files, echo = F, include = F}
+source("code/seqfun.R")
+btaxonomy <- tax_table("data/Bickford.cons.taxonomy", "SILVA")
+btaxonomy$otu <- paste("B_", btaxonomy$otu)
+rownames(btaxonomy) <- btaxonomy$otu
+
+ftaxonomy <- tax_table("~git_repos/Root_ITS/data/Bickford.cons.taxonomy", "UNITE")
+ftaxonomy$otu <- paste("F_", ftaxonomy$otu)
+rownames(ftaxonomy) <- ftaxonomy$otu
+
+```
+We are choosing a cutoff of >0.6 for significant correlations. The following code creates nodes using OTUs that meet correlation cutoff criteria and corresponding taxonomic information
+
+```{r Native positive correlations, echo = F, include = T}
+pos.nat <- cor.nat[cor.nat$value > 0.6 & cor.nat$value < 1, ]
+
+pos.nat$Var1 <- as.character(pos.nat$Var1)
+pos.nat$Var2 <- as.character(pos.nat$Var2)
+nat_pos_nodes <- c(pos.nat$Var1, pos.nat$Var2)
+nat_pos_nodes <- unique(nat_pos_nodes)
+
+L <- order(nat_pos_nodes)
+nat_pos_nodes <- nat_pos_nodes[L]
+bac <- grep("B_", nat_pos_nodes)
+fun <- grep("F_", nat_pos_nodes)
+Taxon <- rep(NA, length(nat_pos_nodes))
+Taxon[bac] <- "Bacteria"
+Taxon[fun] <- "Fungi"
+
+family <- rep(NA, length(nat_pos_nodes))
+bac_otu <- nat_pos_nodes[bac]
+fun_otu <- nat_pos_nodes[fun]
+family[bac] <- btaxonomy[bac_otu, "family"]
+family[fun] <- ftaxonomy[fun_otu, "family"]
+genus <- rep(NA, length(nat_pos_nodes))
+genus[bac] <- btaxonomy[bac_otu, "genus"]
+genus[fun] <- ftaxonomy[fun_otu, "genus"]
+
+nat_pos_nodes <- data.frame("OTU" = nat_pos_nodes, Taxon, "Family" = family, "Genus" = genus)
+
+# graphing networks
+
+nat_pos <- graph_from_data_frame(d=pos.nat, vertices=nat_pos_nodes, directed=F) 
+colrs <- c(Bacteria = "gold", Fungi = "tomato")
+V(nat_pos)$color <- colrs[V(nat_pos)$Taxon]
+plot(nat_pos, edge.arrow.size = 0.4, vertex.label = NA)
+box()
+
+ceb <- cluster_edge_betweenness(nat_pos) 
+dendPlot(ceb, mode="hclust")
+plot(ceb, nat_pos, edge.arrow.size = 0.4, vertex.label = NA)
+
+```
+
+
+```{r native negative correlations, echo = F, include=T}
+# Negative
+
+neg.nat <- cor.nat[cor.nat$value < -0.6 & cor.nat$value > -1, ]
+neg.nat$Var1 <- as.character(neg.nat$Var1)
+neg.nat$Var2 <- as.character(neg.nat$Var2)
+nat_neg_nodes <- c(neg.nat$Var1, neg.nat$Var2)
+nat_neg_nodes <- unique(nat_neg_nodes)
+
+L <- order(nat_neg_nodes)
+nat_neg_nodes <- nat_neg_nodes[L]
+bac <- grep("B_", nat_neg_nodes)
+fun <- grep("F_", nat_neg_nodes)
+Taxon <- rep(NA, length(nat_neg_nodes))
+Taxon[bac] <- "Bacteria"
+Taxon[fun] <- "Fungi"
+
+family <- rep(NA, length(nat_neg_nodes))
+bac_otu <- nat_neg_nodes[bac]
+fun_otu <- nat_neg_nodes[fun]
+family[bac] <- btaxonomy[bac_otu, "family"]
+family[fun] <- ftaxonomy[fun_otu, "family"]
+genus <- rep(NA, length(nat_neg_nodes))
+genus[bac] <- btaxonomy[bac_otu, "genus"]
+genus[fun] <- ftaxonomy[fun_otu, "genus"]
+
+nat_neg_nodes <- data.frame("OTU" = nat_neg_nodes, Taxon, "Family" = family, "Genus" = genus)
+
+## Graphing networks
+
+nat_neg <- graph_from_data_frame(d=neg.nat, vertices=nat_neg_nodes, directed=F) 
+colrs <- c(Bacteria = "gold", Fungi = "tomato")
+V(nat_neg)$color <- colrs[V(nat_neg)$Taxon]
+plot(nat_neg, edge.arrow.size = 0.4, vertex.label = NA)
+box()
+
+ceb_natneg <- cluster_edge_betweenness(nat_neg) 
+dendPlot(ceb_natneg, mode="hclust")
+plot(ceb_natneg, nat_neg, edge.arrow.size = 0.4, vertex.label = NA)
+box()
+
+```
+```{r inv pos correlations, echo = F, include = T}
+pos.inv <- cor.inv[cor.inv$value > 0.6 & cor.inv$value < 1, ]
+
+pos.inv$Var1 <- as.character(pos.inv$Var1)
+pos.inv$Var2 <- as.character(pos.inv$Var2)
+inv_pos_nodes <- c(pos.inv$Var1, pos.inv$Var2)
+inv_pos_nodes <- unique(inv_pos_nodes)
+
+L <- order(inv_pos_nodes)
+inv_pos_nodes <- inv_pos_nodes[L]
+bac <- grep("B_", inv_pos_nodes)
+fun <- grep("F_", inv_pos_nodes)
+Taxon <- rep(NA, length(inv_pos_nodes))
+Taxon[bac] <- "Bacteria"
+Taxon[fun] <- "Fungi"
+
+family <- rep(NA, length(inv_pos_nodes))
+bac_otu <- inv_pos_nodes[bac]
+fun_otu <- inv_pos_nodes[fun]
+family[bac] <- btaxonomy[bac_otu, "family"]
+family[fun] <- ftaxonomy[fun_otu, "family"]
+genus <- rep(NA, length(inv_pos_nodes))
+genus[bac] <- btaxonomy[bac_otu, "genus"]
+genus[fun] <- ftaxonomy[fun_otu, "genus"]
+
+inv_pos_nodes <- data.frame("OTU" = inv_pos_nodes, Taxon, "Family" = family, "Genus" = genus)
+
+# graphing networks
+
+inv_pos <- graph_from_data_frame(d=pos.inv, vertices=inv_pos_nodes, directed=F) 
+colrs <- c(Bacteria = "gold", Fungi = "tomato")
+V(inv_pos)$color <- colrs[V(inv_pos)$Taxon]
+plot(inv_pos, edge.arrow.size = 0.4, vertex.label = NA)
+box()
+
+ceb.in <- cluster_edge_betweenness(inv_pos) 
+dendPlot(ceb.in, mode="hclust")
+plot(ceb.in, inv_pos, edge.arrow.size = 0.4, vertex.label = NA)
+
+```
+
+```{r inv neg correlations, echo = F, include = T}
+neg.inv <- cor.inv[cor.inv$value < -0.6 & cor.inv$value > -1, ]
+
+neg.inv$Var1 <- as.character(neg.inv$Var1)
+neg.inv$Var2 <- as.character(neg.inv$Var2)
+inv_neg_nodes <- c(neg.inv$Var1, neg.inv$Var2)
+inv_neg_nodes <- unique(inv_neg_nodes)
+
+L <- order(inv_neg_nodes)
+inv_neg_nodes <- inv_neg_nodes[L]
+bac <- grep("B_", inv_neg_nodes)
+fun <- grep("F_", inv_neg_nodes)
+Taxon <- rep(NA, length(inv_neg_nodes))
+Taxon[bac] <- "Bacteria"
+Taxon[fun] <- "Fungi"
+
+family <- rep(NA, length(inv_neg_nodes))
+bac_otu <- inv_neg_nodes[bac]
+fun_otu <- inv_neg_nodes[fun]
+family[bac] <- btaxonomy[bac_otu, "family"]
+family[fun] <- ftaxonomy[fun_otu, "family"]
+genus <- rep(NA, length(inv_neg_nodes))
+genus[bac] <- btaxonomy[bac_otu, "genus"]
+genus[fun] <- ftaxonomy[fun_otu, "genus"]
+
+inv_neg_nodes <- data.frame("OTU" = inv_neg_nodes, Taxon, "Family" = family, "Genus" = genus)
+
+# Graphing Networks
+inv_neg <- graph_from_data_frame(d=neg.inv, vertices=inv_neg_nodes, directed=F) 
+colrs <- c(Bacteria = "gold", Fungi = "tomato")
+V(inv_neg)$color <- colrs[V(inv_neg)$Taxon]
+plot(inv_neg, edge.arrow.size = 0.4, vertex.label = NA)
+box()
+
+```
+
+```{r try a network}
+
+```
+
