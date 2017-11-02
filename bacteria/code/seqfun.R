@@ -41,7 +41,7 @@ tax_table <- function(table, database){
     otu_table <- data.frame(otu = taxonomy$OTU, kingdom = kingdom, phylum = phylum, class = class, order = order, family = family, genus = genus, stringsAsFactors = F)
     
   }else if(database == "GG"){
-    taxnocon <- gsub(pattern = "\\(\\d*\\)", replacement = "", x=gg_tax$Taxonomy)
+    taxnocon <- gsub(pattern = "\\(\\d*\\)", replacement = "", x=taxonomy$Taxonomy)
     
     k_re <- "[k_]+(\\w+);.*"
     kingdom <- gsub(pattern = k_re, "\\1", taxnocon) 
