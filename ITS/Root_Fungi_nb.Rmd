@@ -1,0 +1,1532 @@
+---
+title: "Root Fungi Analysis"
+author: "Wes Bickford"
+date: "4/26/2017"
+output:
+  html_notebook:
+    self_contained: yes
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+  html_document:
+    toc: yes
+    toc_depth: '4'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(permute); library(vegan); library("dplyr"); library(knitr)
+
+```
+#Root Fungi Analysis
+
+```{r Setup, echo = F, include = F}
+metadata <- read.csv(file = "data/15metadata.csv", stringsAsFactors = F)
+
+
+
+alpha <- read.table(file = "data/Bickford.groups.ave-std.summary", header=T)
+
+alpha_mean <- alpha[alpha$method == "ave", ]
+alpha_mean$group <- as.character(alpha_mean$group)
+
+meta_alpha <- inner_join(metadata, alpha_mean, by = c("Code"="group"))
+
+```
+##Hyphal Colonization
+
+```{r percol15 anova, echo = F, include = T}
+percol15 <- read.csv("~/git_repos/Root_ms/root_col_15.csv", stringsAsFactors = F)
+percol_nova_nt <- aov(percol15$per_col ~ percol15$Site * percol15$Lineage)
+summary(percol_nova_nt)
+```
+
+```{r nat vs non percol, echo=F, include=T}
+nt_percol_mat <- matrix(NA, nrow = 8, ncol = 4)
+rownames(nt_percol_mat) <- unique(percol15$Site)
+colnames(nt_percol_mat) <- c("Invasive", "Inv_sterr", "Native", "Nat_sterr")
+
+for(ii in rownames(nt_percol_mat)){
+  sub <- percol15[percol15$Site == ii & percol15$Lineage == "Inv", ]
+  num <- nrow(sub)
+  site <- rep(NA, num)
+  if(num > 1){
+    for(pp in 1:num){
+      site[pp] <- sub$per_col[pp]
+    }
+  }else{
+    site <- sub$per_col
+  }
+  nt_percol_mat[ii, 1] <- mean(site)
+  nt_percol_mat[ii, 2] <- (sd(site))/(sqrt(num))
+  sub <- percol15[percol15$Site == ii & percol15$Lineage == "Nat", ]
+  num <- nrow(sub)
+  site <- rep(NA, num)
+  if(num > 1){
+    for(pp in 1:num){
+      site[pp] <- sub$per_col[pp]
+    }
+  }else{
+    site <- sub$per_col
+  }
+  nt_percol_mat[ii, 3] <- mean(site)
+  nt_percol_mat[ii, 4] <- (sd(site))/(sqrt(num))
+}
+nt_by_site <- as.data.frame(nt_percol_mat)
+
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "orange", Rt2 = "gray", SB = "purple")
+
+
+quartz.options(height=6 , width = 6)
+plot.new()
+par(oma = c(1, 1, 1, 1))
+par(mar = c(3, 3, 0.5, 9))
+plot.window(xlim = c(0,0.4), ylim = c(0, 0.4))
+axis(1)
+axis(2)
+
+
+arrows(x0 = nt_by_site$Native, x1 = nt_by_site$Native + nt_by_site$Nat_sterr, y0 = nt_by_site$Invasive, angle = 0)
+arrows(x0 = nt_by_site$Native, x1 = nt_by_site$Native - nt_by_site$Nat_sterr, y0 = nt_by_site$Invasive, angle = 0)
+arrows(x0 = nt_by_site$Native, y0 = nt_by_site$Invasive, y1 = nt_by_site$Invasive + nt_by_site$Inv_sterr, angle = 0)
+arrows(x0 = nt_by_site$Native, y0 = nt_by_site$Invasive, y1 = nt_by_site$Invasive - nt_by_site$Inv_sterr, angle = 0)
+points(x = nt_by_site$Native, y = nt_by_site$Invasive, pch = 16, col = clrs[rownames(nt_by_site)], cex = 1.5)
+box()
+lines(x = c(0,0.5,1), y = c(0,0.5,1), type = "l")
+mtext(side = 1, line = 3, text = "Native Percent Colonization")
+mtext(side = 2, line = 3, text = "Non-Native Percent Colonization")
+#text(x = nt_by_site$Native, y = nt_by_site$Invasive, labels = rownames(nt_by_site), adj = c(0,0), cex = 0.7)
+
+legend_text <- c("Bullard Lake", "Cecil Bay", "Chelsea", "Cheboygan Marsh", "Castle Rock", "Point LeBarb", "Route 2", "Sturgeon Bay")
+legend(0.416,0.416, legend_text, pch = 16, 
+       col = c("blue","red","dark green","coral","black","orange","gray","purple"), xpd = T)
+
+
+```
+## Nutrients
+### Soil Nutrients
+
+```{r plot of nitrogen, echo = F, include = T}
+metadata$Site <- as.factor(metadata$Site)
+metadata$Lineage <- as.factor(metadata$Lineage)
+metadata$Sat_lev <- as.factor(metadata$Sat_lev)
+metadata$Lat <- as.factor(metadata$Lat)
+metadata$SoilP <- as.numeric(metadata$X15SoilP)
+metadata$SoilN <- as.numeric(metadata$X15SoilN)
+metadata$SoilC <- as.numeric(metadata$X15SoilC)
+metadata$TisN <- as.numeric(metadata$X15TisN)
+
+meta_alpha$Lineage <- as.factor(meta_alpha$Lineage)
+
+clrs2 <- c(Inv = "blue", Nat = "red")
+meta_finite <- metadata[is.finite(metadata$SoilN), ]
+meta_finite$Lineage <- as.factor(meta_finite$Lineage)
+meta_finite$Site <- as.factor(meta_finite$Site)
+meta_finite$SoilN <- as.numeric(meta_finite$SoilN)
+# 
+stripchart(SoilN ~ Lineage + Site, data = meta_finite, vertical = T, ylab = "Percent Soil N", ylim = c(0,3), xlab = NULL, axes = F, pch = 20, jitter = 0.1, col = clrs2[levels(meta_alpha$Lineage)])
+# 
+mtext(side=1, at=c(1.5, 3.5, 5.5, 7.5, 9.5, 11.5, 13.5, 15.5), line=1, text = c("BL", "CB", "CH", "CM", "CR", "PLB", "Rt2", "SB"), cex = 1, font = 1)
+# 
+axis(1, at = c(1.5, 3.5, 5.5, 7.5, 9.5, 11.5, 13.5, 15.5), labels = F)
+axis(2, labels = T)
+# 
+legend_text <- c("Non-Native", "Native")
+legend("topright", legend_text, pch = 20,
+        col = c("blue","red"), bg = "white")
+
+abline(v = c(2.5,4.5,6.5,8.5,10.5,12.5,14.5), col = "light gray")
+
+```
+Sites differed wrt to Soil N but not markedly
+
+```{r plot of nitrogen by site, echo = F, include = T}
+
+boxplot(SoilN ~ Site, data = meta_finite, ylab = "Percent Soil N", ylim = c(0,4), xlab = NULL, axes = F, range = 0)
+# 
+mtext(side=1, at=c(1,2,3,4,5,6,7,8), line=1, text = c("BL", "CB", "CH", "CM", "CR", "PLB", "Rt2", "SB"), cex = 1, font = 1)
+mtext(side = 1, at = c(1,2,3,4,5,6,7,8), line = -10, c("a", "b","b","b","b","b","b","b" ))
+# 
+axis(1, at = c(1,2,3,4,5,6,7,8), labels = F)
+axis(2, labels = T)
+# 
+
+an_soilN <- aov(SoilN ~ Site + Lineage, data = meta_finite)
+summary(an_soilN)
+TukeyHSD(an_soilN)
+```
+Sites differend in Soil N significantly, but not by lineage. 
+The Lineage of a particular population was not driven by Soil N
+Additionally, only the Bullard Lake Site was significantly different from the rest
+
+```{r stripchart of p, echo = F, include = T}
+clrs2 <- c(Inv = "blue", Nat = "red")
+meta_finite <- metadata[is.finite(metadata$SoilP), ]
+meta_finite$Lineage <- as.factor(meta_finite$Lineage)
+meta_finite$Site <- as.factor(meta_finite$Site)
+meta_finite$SoilP <- as.numeric(meta_finite$SoilP)
+# 
+stripchart(SoilP ~ Lineage + Site, data = meta_finite, vertical = T, ylab = "Available Soil P [mg/kg]", ylim = c(0,55), xlab = NULL, axes = F, pch = 20, jitter = 0.1, col = clrs2[levels(meta_alpha$Lineage)])
+# 
+mtext(side=1, at=c(1.5, 3.5, 5.5, 7.5, 9.5, 11.5, 13.5, 15.5), line=1, text = c("BL", "CB", "CH", "CM", "CR", "PLB", "Rt2", "SB"), cex = 1, font = 1)
+# 
+axis(1, at = c(1.5, 3.5, 5.5, 7.5, 9.5, 11.5, 13.5, 15.5), labels = F)
+axis(2, labels = T)
+# 
+legend_text <- c("Non-Native", "Native")
+legend("topright", legend_text, pch = 20,
+        col = c("blue","red"))
+abline(v = c(2.5,4.5,6.5,8.5,10.5,12.5,14.5), col = "light gray")
+
+```
+
+```{r plot of p, echo = F, include = T}
+
+# 
+boxplot(SoilP ~ Site, data = meta_finite, ylab = "Available Soil P [mg/kg]", ylim = c(0,20), xlab = NULL, axes = F, range = 0)
+# 
+mtext(side=1, at=c(1,2,3,4,5,6,7,8), line=1, text = c("BL", "CB", "CH", "CM", "CR", "PLB", "Rt2", "SB"), cex = 1, font = 1)
+# 
+axis(1, at = c(1,2,3,4,5,6,7,8), labels = F)
+axis(2, labels = T)
+# 
+an_soilP <- aov(SoilP ~ Site + Lineage, data = meta_finite)
+summary(an_soilP)
+```
+
+Soil P did not differ by Site or Lineage
+
+```{r stripchart of TisN, echo = F, include = T}
+clrs2 <- c(Inv = "blue", Nat = "red")
+meta_finite <- metadata[is.finite(metadata$TisN), ]
+meta_finite$Lineage <- as.factor(meta_finite$Lineage)
+meta_finite$Site <- as.factor(meta_finite$Site)
+meta_finite$TisN <- as.numeric(meta_finite$TisN)
+# 
+stripchart(TisN ~ Lineage + Site, data = meta_finite, vertical = T, ylab = "Percent Tissue N", ylim = c(0,5), xlab = NULL, axes = F, pch = 20, jitter = 0.1, col = clrs2[levels(meta_alpha$Lineage)])
+# 
+mtext(side=1, at=c(1.5, 3.5, 5.5, 7.5, 9.5, 11.5, 13.5, 15.5), line=1, text = c("BL", "CB", "CH", "CM", "CR", "PLB", "Rt2", "SB"), cex = 1, font = 1)
+# 
+axis(1, at = c(1.5, 3.5, 5.5, 7.5, 9.5, 11.5, 13.5, 15.5), labels = F)
+axis(2, labels = T)
+# 
+legend_text <- c("Non-Native", "Native")
+legend("topright", legend_text, pch = 20,
+        col = c("blue","red"))
+abline(v = c(2.5,4.5,6.5,8.5,10.5,12.5,14.5), col = "light gray")
+
+```
+
+
+```{r boxplot Tis N by site, echo = F, include = T}
+
+# 
+boxplot(TisN ~ Site, data = meta_finite, ylab = "Percent Tissue N", ylim = c(0,5), xlab = NULL, axes = F, range = 0)
+# 
+mtext(side=1, at=c(1,2,3,4,5,6,7,8), line=1, text = c("BL", "CB", "CH", "CM", "CR", "PLB", "Rt2", "SB"), cex = 1, font = 1)
+# 
+axis(1, at = c(1,2,3,4,5,6,7,8), labels = F)
+axis(2, labels = T)
+# 
+an_TisN <- aov(TisN ~ Site + Lineage, data = meta_finite)
+summary(an_TisN)
+```
+No significant difference in Tissue N by site, but Lineage was marginally significant
+
+```{r boxplot Tis N by Lin, echo = F, include = T}
+
+# 
+boxplot(TisN ~ Lineage, data = meta_finite, ylab = "Percent Tissue N", ylim = c(0,5), xlab = NULL, axes = F, range = 0)
+# 
+mtext(side=1, at=c(1,2), line=1, text = c("Non-Native", "Native"), cex = 1, font = 1)
+# 
+axis(1, at = c(1,2), labels = F)
+axis(2, labels = T)
+box()
+# 
+TisN_byLin <- kruskal.test(TisN ~ Lineage, data = meta_finite)
+TisN_byLin
+```
+There is a significant difference in Tissue N by Lineage (P = `r TisN_byLin$p.value`) *but* Native is slightly higher than Non-native. This is unexpected given the difference in photosyntheic capacity between the two lineages
+
+```{r colonization vs tisN, echo = F, include = T}
+meta_col <- inner_join(metadata, percol15, by = c("Code"="SampleID"))
+
+clr <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "orange", Rt2 = "gray", SB = "purple")
+
+meta_col$Site.x <- as.factor(meta_col$Site.x)
+meta_col$TisN <- as.numeric(meta_col$TisN)
+meta_col$SoilP <- as.numeric(meta_col$SoilP)
+meta_col$SoilN <- as.numeric(meta_col$SoilN)
+
+reg_coltisN <- lm(meta_col$TisN ~ meta_col$per_col)
+reg_coltisN
+summary(reg_coltisN)
+
+quartz.options(height=6 , width = 6)
+plot.new()
+par(oma = c(1, 1, 1, 1))
+plot.window(xlim = c(0,0.85), ylim = c(0,5))
+axis(1)
+axis(2)
+
+points(x = meta_col$per_col, y = meta_col$TisN, pch = 19, col = clrs[meta_col$Site.x])
+abline(lm(meta_col$TisN ~ meta_col$per_col))
+mtext(side = 2, line = 3, text = "Percent Tissue N")
+mtext(side = 1, line = 3, text = "Percent Hyphal Colonization")
+
+legend_text <- c("Bullard Lake", "Cecil Bay", "Chelsea", "Cheboygan Marsh", "Castle Rock", "Point LeBarb", "Route 2", "Sturgeon Bay")
+legend("right", legend_text, pch = 15, 
+       col = c("blue","red","dark green","coral","black","orange","gray","purple"))
+
+
+```
+
+
+```{r colonization vs N, echo = F, include = T}
+meta_col <- inner_join(metadata, percol15, by = c("Code"="SampleID"))
+
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "orange", Rt2 = "gray", SB = "purple")
+
+meta_col$Site.x <- as.factor(meta_col$Site.x)
+meta_col$TisN <- as.numeric(meta_col$TisN)
+meta_col$SoilP <- as.numeric(meta_col$SoilP)
+meta_col$SoilN <- as.numeric(meta_col$SoilN)
+
+reg_colN <- lm(meta_col$per_col ~ meta_col$SoilN)
+reg_colN
+summary(reg_colN)
+
+
+quartz.options(height=6 , width = 6)
+plot.new()
+par(oma = c(1, 1, 1, 1))
+plot.window(xlim = c(0,5), ylim = c(0,0.6))
+axis(1)
+axis(2)
+
+points(x = meta_col$SoilN, y = meta_col$per_col, pch = 19, col = clrs[meta_col$Site.x])
+abline(lm(meta_col$per_col ~ meta_col$SoilN))
+mtext(side = 1, line = 3, text = "Percent Soil N")
+mtext(side = 2, line = 3, text = "Percent Hyphal Colonization")
+
+legend_text <- c("Bullard Lake", "Cecil Bay", "Chelsea", "Cheboygan Marsh", "Castle Rock", "Point LeBarb", "Route 2", "Sturgeon Bay")
+legend("right", legend_text, pch = 15, 
+       col = c("blue","red","dark green","coral","black","orange","gray","purple"), xpd = T)
+
+
+```
+Soil N does not appear to influence Hyphal Colonization
+
+```{r colonization vs P, echo = F, include = T}
+
+quartz.options(height=6 , width = 6)
+plot.new()
+par(oma = c(1, 1, 1, 1))
+par(mar = c(4, 4, 0.5, 9))
+plot.window(xlim = c(0,12), ylim = c(0,0.4))
+axis(1)
+axis(2)
+
+reg_colP <- lm(meta_col$per_col ~ meta_col$SoilP)
+reg_colP
+summary(reg_colP)
+
+points(x = meta_col$SoilP, y = meta_col$per_col, pch = 19, col = clrs[meta_col$Site.x])
+abline(lm(meta_col$per_col ~ meta_col$SoilP))
+mtext(side = 1, line = 3, text = "Available Soil P [mg / kg]")
+mtext(side = 2, line = 3, text = "Percent Hyphal Colonization")
+mtext(side = 1, line = -14, text = "R-squared = 0.4854")
+mtext(side = 1, line = -13, text = "P<0.001")
+
+legend_text <- c("Bullard Lake", "Cecil Bay", "Chelsea", "Cheboygan Marsh", "Castle Rock", "Point LeBarb", "Route 2", "Sturgeon Bay")
+legend(12.47, 0.416, legend_text, pch = 15, 
+       col = c("blue","red","dark green","coral","black","orange","gray","purple"), xpd = T)
+box()
+
+```
+Soil P does not appear to influence hyphal colonization
+
+```{r water table boxplots}
+meta_col <- meta_col[is.finite(meta_col$TisN), ]
+meta_col$Sat_lev <- as.factor(meta_col$Sat_lev)
+colN <- lm(meta_col$TisN ~ meta_col$per_col)
+wtr <- c(UN = "white", SAT = "light gray", SAT_HI = "dark gray")
+
+boxplot(per_col ~ Sat_lev, data = meta_col,
+        ylab = "Percent Colonization",
+        ylim = c(0,0.6), col = wtr[levels(meta_col$Sat_lev)],
+        names = F,
+        range = 0)
+
+mtext(side=1, at=c(1,2,3), line=0.5, text = c("Standing Water", "Saturated", "Unsaturated"), cex = 1, font = 2)
+
+kw_col <- kruskal.test(meta_col$per_col ~ meta_col$Sat_lev)
+kw_col
+
+```
+Kruskal-Wallace test confirms that colonization in North and South are significantly different from one another (P = `r kw_col$p.value`)
+
+This makes a lot of sense since most fungi are aerobic
+
+
+```{r col by sat level and lineage, echo = F, include = T}
+clrs <- c(Nat = "white", Inv = "dark gray")
+meta_col$Lineage.x <- as.factor(meta_col$Lineage.x)
+
+boxplot(per_col ~ Lineage.x + Sat_lev, data = meta_col,
+        ylab = "Percent Colonization",
+        ylim = c(0,0.6), col = clrs[levels(meta_col$Lineage.x)],
+        names = F,
+        range = 0)
+
+mtext(side=1, at=c(1.5,3.5,5.5), line=0.5, text = c("Standing Water", "Saturated", "Unsaturated"), cex = 1, font = 2)
+
+legend("topleft", c("Non-native", "Native" ), pch = 22, col = "black", pt.bg = c("gray", "white"))
+
+kw_col <- kruskal.test(meta_col$per_col ~ meta_col$Sat_lev)
+kw_lin <- kruskal.test(meta_col$per_col ~ meta_col$Lineage.x)
+an_col_sat <- aov(per_col ~ Sat_lev * Lineage.x, data = meta_col)
+summary(an_col_sat)
+```
+
+This shows that the trend towards higher colonization in Non-native persists regardless of water level differences. However the differences are most pronounced in un-saturated soils
+
+```{r geog col, echo = F, include=T}
+geo <- c(North = "white", South = "grey")
+meta_col$Lat <- as.factor(meta_col$Lat)
+
+boxplot(per_col ~ Lat, data = meta_col,
+        ylab = "Percent Colonization",
+        ylim = c(0,0.6), col = geo[levels(meta_col$Lat)],
+        names = F,
+        range = 0)
+
+mtext(side=1, at=c(1,2), line=0.5, text = c("North", "South"), cex = 1, font = 2)
+
+kw_col <- kruskal.test(meta_col$per_col ~ meta_col$Lat)
+
+
+```
+Kruskal-Wallace test confirms that colonization in North and South are significantly different from one another (P = `r kw_col$p.value`)
+
+##Rarefaction Curves
+
+These are rarefaction curves for all samples. Samples were rarefied to 200 sequences as that was the lowest number at any site. 
+
+```{r Rarefaction plot, echo = F, include = T}
+rarefy <- read.table(file = "data/Bickford.groups.rarefaction", header=T, stringsAsFactors=F)
+
+ave_columns <- grep(pattern = "X1", colnames(rarefy))
+ave_rarefy <- rarefy[ , ave_columns]
+
+numsampled <- rarefy$numsampled
+
+sample_IDs <- gsub(pattern = "X1.", replacement = "", x=colnames(ave_rarefy))
+colnames(ave_rarefy) <- sample_IDs
+
+clrs <- c(BL = "grey", CB = "blue", CH = "red", CM = "coral", CR = "black", PLB = "orange", Rt2 = "green", SB = "purple")
+
+
+plot(NA, type = "l",
+     xlab = "Number of Sequences Sampled",
+     ylab = "Number of OTUs Observed",
+     ylim = c(0,150),
+     xlim = c(0,3000)
+     )
+for(i in sample_IDs){
+      points(ave_rarefy[ ,i] ~ numsampled, type= "l",
+             col=clrs[metadata[metadata$Code==i, "Site"]],
+             lwd = 2, lty = 1
+       )
+}
+abline(v=200)
+
+```
+
+##Alpha Diversity 
+```{r alpha setup, echo = F, include = F}
+
+# removing PLB and SB from this plot because there are no replicates
+meta_alpha_sub <- meta_alpha[meta_alpha$Site != "SB" & meta_alpha$Site != "PLB", ]
+meta_alpha_sub$Site <- as.character(meta_alpha_sub$Site)
+meta_alpha_sub$Site <- as.factor(meta_alpha_sub$Site)
+meta_alpha_sub$Lineage <- as.factor(meta_alpha_sub$Lineage)
+```
+
+The following shows shannon diversity by site and lineage
+
+```{r alpha plots, echo = F, include = T}
+clrs <- c(Nat = "white", Inv = "gray")
+
+boxplot(npshannon ~ Lineage + Site, data = meta_alpha_sub,
+        ylab = "Shannon Diversity Index",
+        ylim = c(0,5.5), col = clrs[levels(meta_alpha_sub$Lineage)],
+        names = F,
+        range = 0, axes = F)
+axis(1, at = c(1.5,3.5,5.5,7.5,9.5,11.5), labels = F)
+axis(2)
+mtext(side=1, at=c(1.5,3.5,5.5,7.5,9.5,11.5), line=0.5, text = unique(meta_alpha_sub$Site), cex = 1, font = 2)
+box()
+
+legend("topright", c("Non-native", "Native" ), pch = 22, col = "black", pt.bg = c("gray", "white"))
+
+```
+
+Histograms show that shannon diversity is fairly normally distributed.
+
+```{r shannon hists, echo = F, include=T}
+hist((meta_alpha_sub$npshannon), breaks = 6)
+hist(meta_alpha$npshannon, breaks = 6)
+```
+
+Assuming those are normally distributed, here are the results of an ANOVA by site and lineage. No significant difference in alpha diversity by site or lineage. 
+
+```{r ANOVA shannon, echo = F, include = T}
+an_shannon <- aov(npshannon ~ Site * Lineage, data = meta_alpha)
+summary(an_shannon)
+```
+
+##Community Analysis
+###PerManova
+
+The following is a PerMANOVA of phyloytpes by site and Lineage
+
+```{r permanova1, include=T, echo = F, results = 'hold'}
+shared <- read.table(file= "data/Bickford.subsample.shared", header = T, stringsAsFactors = F, row.names = 2)
+shared <- shared[ ,-c(1,2)]
+
+permfungi <- adonis(shared ~ Site * Lineage, data=meta_alpha, method = "bray")
+permfungi
+
+```
+
+
+There is a significant *site* effect. Lineage and their interaction are non-significant.
+
+###NMDS
+
+```{r NMDS, include = F, echo = F}
+NMDS <- metaMDS(shared, trymax = 100, k=3)
+NMDS
+NMDS <- metaMDS(shared, previous.best = NMDS, k=3)
+NMDS
+
+NMDS_scores <- scores(NMDS)
+
+NMDS1 <- NMDS_scores[ ,1]
+NMDS2 <- NMDS_scores[ ,2]
+
+NMDS_scores <- as.data.frame(NMDS_scores)
+```
+
+The following is an NMDS (stress = `r NMDS$stress`) showing Lineage as different shapes and site by color. The ellipses are sd by site. 
+
+```{r NMDS plot, include=T, echo = F}
+
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "brown", Rt2 = "gray", SB = "purple")
+pchs <- c(Nat = 1, Inv = 16)
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 2, 3, 0.5, 9 ))
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+axis(side = 1)
+axis(side = 2, las = 1)
+points(x = NMDS_scores$NMDS1, y = NMDS_scores$NMDS2, pch = pchs[as.character(meta_alpha$Lineage)], 
+      col = clrs[as.character(meta_alpha$Site)], cex = 1.5, lwd = 2)
+
+mtext(side = 1, line = 2, text = "NMDS1")
+mtext(side = 2, line = 3, text = "NMDS2" )
+
+ordiellipse(NMDS, meta_alpha$Site == "BL", show.groups = TRUE, kind = "sd", col = "blue", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Site == "CB", show.groups = TRUE, kind = "sd", col = "red", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Site == "CH", show.groups = TRUE, kind = "sd", col = "dark green", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Site == "CM", show.groups = TRUE, kind = "sd", col = "coral", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Site == "CR", show.groups = TRUE, kind = "sd", col = "black", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Site == "Rt2", show.groups = TRUE, kind = "sd", col = "gray", lty = 1, lwd = 2.0)
+
+mtext(side = 1, line = -1.5, at = -0.75, text = "Stress = 0.1920")
+
+
+legend_text <- c("Bullard Lake", "Chelsea", "Cecil Bay", "Cheboygan Marsh", "Castle Rock", "Route 2", "Sturgeon Bay","Point LeBarb")
+legend(1.08,1.08, legend_text, pch = 16, 
+       col = c("blue","dark green","red","coral","black","gray","purple", "brown"), 
+       pt.lwd = 2, pt.cex = 1.5, xpd = T)
+
+legend_text2 <- c("Native", "Non-Native")
+legend("bottomright", legend_text2, pch = c(1,16), pt.lwd = 2, pt.cex = 1.5, xpd = T)
+box()
+
+```
+
+
+###Remove rare taxa
+
+I removed rare taxa using relative abundance data. Any OTU that made up less than 0.1% of the total sequences was removed. This is more stringent than removing singletons, but ensures that rare taxa are not responsible for site effects. The following are results of a permanova of only abundant taxa by site and lineage. 
+
+```{r, Permanova abundant, echo = F, include = T}
+shared <- read.table(file="data/Bickford.subsample.shared", header=T, stringsAsFactors=F, row.names=2)
+shared <- shared[,-c(1,2)]
+
+rel_abund <- shared / apply(shared, 1, sum)
+mean_rel_abund <- apply(rel_abund, 2, mean)
+otu_order <- order(mean_rel_abund, decreasing=T)
+rel_abund <- rel_abund[,otu_order]
+
+stopifnot(rownames(shared) == meta_alpha$Code)
+
+mean_rel_abund <- apply(rel_abund, 2, mean)
+abundant <- mean_rel_abund > 0.001
+rel_abund_subset <- rel_abund[, abundant]
+shared_abundant <- shared[ , abundant]
+
+permabundant <- adonis(shared_abundant ~ Site * Lineage, data = meta_alpha)
+permabundant
+```
+
+Removing rare taxa reduced the total OTU number from `r length(colnames(shared))` to `r length(colnames(shared_abundant))`
+
+There is still a significant difference in the community using only abundant taxa. 
+
+I also performed a Kruskal-Wallace test to see if the relative abundance of any individual taxa differed by site or lineage. All tests were non-significant indicating that no individual otu relative abundances are significantly different by site or lineage 
+
+
+```{r NMDS abundant, include = F, echo = F}
+NMDS_ab <- metaMDS(shared_abundant, trymax = 100, k=3)
+NMDS_ab
+NMDS_ab <- metaMDS(shared_abundant, previous.best = NMDS_ab, k=3)
+NMDS_ab
+
+NMDSab_scores <- scores(NMDS_ab)
+
+NMDS1_ab <- NMDSab_scores[ ,1]
+NMDS2_ab <- NMDSab_scores[ ,2]
+
+NMDSab_scores <- as.data.frame(NMDSab_scores)
+```
+###NMDS with Rare Taxa removed
+```{r NMDS abundant plot, include=T, echo = F}
+
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "brown", Rt2 = "dark gray", SB = "purple")
+pchs <- c(Nat = 1, Inv = 16)
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 2, 3, 0.5, 9 ))
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+axis(side = 1)
+axis(side = 2, las = 1)
+points(x = NMDSab_scores$NMDS1, y = NMDSab_scores$NMDS2, pch = pchs[as.character(meta_alpha$Lineage)], 
+      col = clrs[as.character(meta_alpha$Site)], cex = 1.5, lwd = 2)
+
+mtext(side = 1, line = 2, text = "NMDS1")
+mtext(side = 2, line = 3, text = "NMDS2" )
+
+ordiellipse(NMDS_ab, meta_alpha$Site == "BL", show.groups = TRUE, kind = "sd", col = "blue", lty = 1, lwd = 2.0)
+ordiellipse(NMDS_ab, meta_alpha$Site == "CB", show.groups = TRUE, kind = "sd", col = "red", lty = 1, lwd = 2.0)
+ordiellipse(NMDS_ab, meta_alpha$Site == "CH", show.groups = TRUE, kind = "sd", col = "dark green", lty = 1, lwd = 2.0)
+ordiellipse(NMDS_ab, meta_alpha$Site == "CM", show.groups = TRUE, kind = "sd", col = "coral", lty = 1, lwd = 2.0)
+ordiellipse(NMDS_ab, meta_alpha$Site == "CR", show.groups = TRUE, kind = "sd", col = "black", lty = 1, lwd = 2.0)
+ordiellipse(NMDS_ab, meta_alpha$Site == "Rt2", show.groups = TRUE, kind = "sd", col = "dark gray", lty = 1, lwd = 2.0)
+
+legend_text <- c("Bullard Lake", "Chelsea", "Cecil Bay", "Cheboygan Marsh", "Castle Rock", "Route 2", "Sturgeon Bay","Point LeBarb")
+legend(1.08,1.08, legend_text, pch = 16, 
+       col = c("blue","dark green","red","coral","black","gray","purple", "brown"), 
+       pt.lwd = 2, pt.cex = 1.5, xpd = T)
+
+legend_text2 <- c("Native", "Non-Native")
+legend(1.08,-0.685, legend_text2, pch = c(1,16), pt.lwd = 2, pt.cex = 1.5, xpd = T)
+box()
+
+```
+Using the abundant taxa still show differences by Site. Looks a lot messier. Removing rare taxa made the sites more similar, but still different from one another 
+
+##Taxonomic Analysis
+
+```{r Taxonomy setup, echo = F, include = F}
+source("code/seqfun.R")
+
+otu_phylum_genus <- tax_table("data/Bickford.cons.taxonomy", "UNITE")
+
+shared <- read.table(file= "data/Bickford.subsample.shared", header = T, stringsAsFactors = F, row.names = 2)
+shared <- shared[ ,-c(1,2)]
+
+
+L <- otu_phylum_genus$otu %in% colnames(shared)
+otu_phylum_genus <- otu_phylum_genus[L, ]
+stopifnot(nrow(otu_phylum_genus)==ncol(shared))
+
+# how do I get the otus from the Ascomycota?
+
+asco_otus <- otu_phylum_genus[otu_phylum_genus$phylum == "Ascomycota", "otu"]
+asco_shared <- shared[ , asco_otus]
+
+# how do I combine the number of sequences from each of the Acomycota OTUs
+
+    # in the below, 1 is for rows and 2 is for columns
+ascomycota_count <- apply(asco_shared, 1, sum)
+
+# how do I repeat this for all phyla?
+#make a loop
+
+#need to know the phylum names - phylum_names / phylum_name
+phylum_names <- unique(otu_phylum_genus$phylum)
+# need somwhere to put data - allphylum_shared
+n_phyla <- length(phylum_names)
+n_samples <- nrow(shared)
+allphylum_shared <- data.frame(matrix(0, nrow = n_samples, ncol = n_phyla))
+rownames(allphylum_shared) <- rownames(shared)
+colnames(allphylum_shared) <- phylum_names
+
+#my loop
+for(i in phylum_names){
+  phylum_otus <- otu_phylum_genus[otu_phylum_genus$phylum == i, "otu"]
+  phylum_shared <- shared[ , phylum_otus]
+  if(length(phylum_otus) > 1){
+    phylum_count <- apply(phylum_shared, 1, sum)
+    } else {
+      phylum_count <- phylum_shared
+    }
+  allphylum_shared[ , i] <- phylum_count
+  
+}
+
+# 3. calculate the relative abundance
+n_seqs <- apply(allphylum_shared, 1, sum)
+phylum_rel_abund <- allphylum_shared / n_seqs[1]
+
+tot_rel_abund <- numeric()
+for(h in colnames(phylum_rel_abund)){
+  y <- mean(phylum_rel_abund[ ,h])
+  tot_rel_abund[h] <- y
+}
+sum(tot_rel_abund)
+
+uncl <- tot_rel_abund[2] + tot_rel_abund[3]
+
+tot_rel_abund_cl <- c(tot_rel_abund[1], uncl, tot_rel_abund[4], tot_rel_abund[5], tot_rel_abund[6], tot_rel_abund[7])
+
+names(tot_rel_abund_cl) <- c("Ascomycota", "Unclassified", "Basidiomycota", "Zygomycota", "Rozellomycota", "Glomeromycota")
+
+L <- order(tot_rel_abund_cl, decreasing = T)
+tot_rel_abund_cl <- tot_rel_abund_cl[L]
+```
+###By Phylum
+
+The following show all fungal Phyla by relative sequence abundance
+
+```{r Phylum relative abundance, echo = F, include = T}
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 4, 8, 0.5, 1 ))
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+
+barplot(height = tot_rel_abund_cl, beside=T, horiz = T, axisnames = F, xlab = "Relative abundance")
+axis(side = 2, las = 1, labels = c("Ascomycota", "Basidiomycota", "Unclassified", "Zygomycota", "Glomeromycota", "Rozellomycota"), at = c(0.7,1.9,3.1,4.3,5.5,6.7))
+box()
+
+```
+
+Ascomycota makes up `r (tot_rel_abund['Ascomycota'])*100`% of the total sequences!
+
+Glomeromycota makes up only `r (tot_rel_abund['Glomeromycota'])*100`%!!
+
+```{r tax by lineage, echo = F, include = F}
+for(i in phylum_names){
+  phylum_otus <- otu_phylum_genus[otu_phylum_genus$phylum == i, "otu"]
+  phylum_shared <- shared[ , phylum_otus]
+  if(length(phylum_otus) > 1){
+    phylum_count <- apply(phylum_shared, 1, sum)
+    } else {
+      phylum_count <- phylum_shared
+    }
+  allphylum_shared[ , i] <- phylum_count
+  
+}
+SampleID <- rownames(allphylum_shared)
+natID <- SampleID[grep(pattern = "Nat", SampleID)]
+nonID <- SampleID[grep(pattern = "Inv", SampleID)]
+
+allphylum_shared <- data.frame(SampleID, allphylum_shared)
+Unclassified <- allphylum_shared[3] + allphylum_shared[4]
+
+allphylum_shared <- data.frame(allphylum_shared[1:2],Unclassified, allphylum_shared[5:8])
+
+topphyla_shared <- allphylum_shared[2:7]
+
+seqs <- apply(topphyla_shared, 1, sum)
+topphyla_ra <- topphyla_shared / seqs
+topphyla_ra <- data.frame(SampleID, topphyla_ra)
+
+meta_top_phyla <- inner_join(topphyla_ra, metadata, by = c( "SampleID" = "Code"))
+meta_phylum_shared <- inner_join(allphylum_shared, metadata, by = c( "SampleID" = "Code"))
+
+
+# 3. calculate the relative abundance for native
+nat_shared <- meta_phylum_shared[meta_phylum_shared$Lineage == "Nat", ]
+non_shared <- meta_phylum_shared[meta_phylum_shared$Lineage == "Inv", ]
+
+nat_shared <- nat_shared[ ,2:7]
+rownames(nat_shared) <- natID
+
+non_shared <- non_shared[ ,2:7]
+rownames(non_shared) <- nonID
+
+nat_seqs <- apply(nat_shared, 1, sum)
+nat_phylum_rel_abund <- nat_shared / nat_seqs
+
+nat_av_ra <- apply(nat_phylum_rel_abund, 2, mean)
+nat_sd_ra <- apply(nat_phylum_rel_abund, 2, sd)
+nat_se_ra <- nat_sd_ra/sqrt(23)
+
+
+# 3. calculate the relative abundance for invasive
+
+non_seqs <- apply(non_shared, 1, sum)
+non_phylum_rel_abund <- non_shared / non_seqs
+
+non_av_ra <- apply(non_phylum_rel_abund, 2, mean)
+non_sd_ra <- apply(non_phylum_rel_abund, 2, sd)
+non_se_ra <- non_sd_ra/sqrt(24)
+
+lin_rel_average <- data.frame(Native = nat_av_ra, NonNative = non_av_ra)
+
+top_av_phyla <- as.matrix(lin_rel_average)
+top_av_phyla <- t(top_av_phyla)
+
+x0_non <- non_av_ra - non_se_ra
+x1_non <- non_av_ra + non_se_ra
+
+x0_nat <- nat_av_ra - nat_se_ra
+x1_nat <- nat_av_ra + nat_se_ra
+
+an_ra_asco <- aov(meta_top_phyla$Ascomycota ~ meta_top_phyla$Site * meta_top_phyla$Lineage)
+summary(an_ra_asco)
+
+an_ra_bas <- aov(meta_top_phyla$Basidiomycota ~ meta_top_phyla$Site * meta_top_phyla$Lineage)
+summary(an_ra_bas)
+
+an_ra_zygo <- aov(meta_top_phyla$Zygomycota ~ meta_top_phyla$Site * meta_top_phyla$Lineage)
+summary(an_ra_zygo)
+
+an_ra_roz <- aov(meta_top_phyla$Rozellomycota ~ meta_top_phyla$Site * meta_top_phyla$Lineage)
+summary(an_ra_roz)
+
+an_ra_glom <- aov(meta_top_phyla$Glomeromycota ~ meta_top_phyla$Site * meta_top_phyla$Lineage)
+summary(an_ra_glom)
+
+
+```
+
+```{r Phylum relative abundance by lin, echo = F, include = F}
+nat_uncl <- nat_rel_abund["unclassified"] + nat_rel_abund["unclassified_Fungi"]
+non_uncl <- non_rel_abund["unclassified"] + non_rel_abund["unclassified_Fungi"]
+
+nat_rel_abund <- c(nat_rel_abund[1],nat_uncl,nat_rel_abund[4:7])
+non_rel_abund <- c(non_rel_abund[1],non_uncl,non_rel_abund[4:7])
+
+lin_rel_abund <- data.frame(Native = nat_rel_abund, NonNative = non_rel_abund)
+
+top_phyla <- as.matrix(lin_rel_abund)
+top_phyla <- t(top_phyla)
+```
+
+```{r top phylum plot, echo = F, include=T}
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 4, 8, 0.5, 1 ))
+plot.window(xlim = c(-1,1.5), ylim = c(-1,1))
+
+barplot(height = top_av_phyla, beside=T, horiz = T, axisnames = F, xlab = "Relative abundance", xlim = c(0,1.5), col = c("white", "gray"))
+arrows(x0 = x0_nat + 0.005, x1 = x1_nat + 0.005, y0 = c(1.5,4.5,7.5,10.5,13.5,16.5), angle = 0, lwd = 1.5)
+arrows(x0 = x0_non + 0.017, x1 = x1_non + 0.017, y0 = c(2.5,5.5,8.5,11.5,14.5,17.5), angle = 0, lwd = 1.5)
+axis(side = 2, las = 1, labels = colnames(top_av_phyla), at = c(2,5,8,11,14,17))
+
+
+mtext("Significant Differences",side = 1, line = -16, at = 1.2, cex = 1)
+mtext(c("Lineage","Site"),side = 1, line = -15, at = c(1.12,1.32), cex = 0.9)
+
+arrows(x0 = c(1.02,1.22), y0 = 1, y1 = 17.5, angle = 0, lwd = 0.75)
+mtext(c(".","ns","ns","ns","ns","ns"),side = 1, line = c(-2,-4.33,-6.66,-9,-11.33,-13.66), at = 1.32, cex = c(2,1,1,1,1,1))
+mtext(c("ns","ns","ns","ns","ns","ns"),side = 1, line = c(-2,-4.33,-6.66,-9,-11.33,-13.66), at = 1.12, cex = 1)
+
+
+
+legend("top", c("Non-native", "Native" ), pch = 22, col = "black", pt.bg = c("gray", "white"))
+```
+###By Genus
+
+```{r Rel abund setup (genus), echo = F, include = F}
+otu_asco_genus <- otu_phylum_genus[otu_phylum_genus$phylum == "Ascomycota", ]
+
+asco_otus <- otu_phylum_genus[otu_phylum_genus$phylum == "Ascomycota", "otu"]
+asco_shared <- shared[ , asco_otus]
+
+# how do I combine the number of sequences from each of the Acomycota OTUs
+
+# in the below, 1 is for rows and 2 is for columns
+ascomycota_count <- apply(asco_shared, 1, sum)
+
+# how do I repeat this for all phyla?
+#make a loop
+
+#need to know the genus names within ascomycota
+genus_names <- unique(otu_asco_genus$genus)
+# need somwhere to put data - asco_genera_shared
+n_genera <- length(genus_names)
+n_samples <- nrow(asco_shared)
+asco_genera_shared <- data.frame(matrix(0, nrow = n_samples, ncol = n_genera))
+rownames(asco_genera_shared) <- rownames(asco_shared)
+colnames(asco_genera_shared) <- genus_names
+
+#my loop
+for(i in genus_names){
+  genus_otus <- otu_asco_genus[otu_asco_genus$genus == i, "otu"]
+  genus_shared <- shared[ , genus_otus]
+  if(length(genus_otus) > 1){
+    genus_count <- apply(genus_shared, 1, sum)
+  } else {
+    genus_count <- genus_shared
+  }
+  asco_genera_shared[ , i] <- genus_count
+  
+}
+
+
+# 3. calculate the relative abundance
+n_seqs <- apply(asco_genera_shared, 1, sum)
+genus_rel_abund <- asco_genera_shared / n_seqs
+
+tot_genus_rel_abund <- numeric()
+for(h in colnames(genus_rel_abund)){
+  y <- mean(genus_rel_abund[ ,h])
+  tot_genus_rel_abund[h] <- y
+}
+sum(tot_genus_rel_abund)
+
+
+L <- sort.list(tot_genus_rel_abund, decreasing = T)
+tot_genus_rel_abund <- tot_genus_rel_abund[L]
+
+genus_names <- unique(otu_asco_genus$genus)
+cl_genus_names <- genus_names[genus_names != "unclassified"]
+# need somwhere to put data - asco_genera_shared
+n_genera <- length(cl_genus_names)
+n_samples <- nrow(asco_shared)
+asco_cl_genera_shared <- data.frame(matrix(0, nrow = n_samples, ncol = n_genera))
+rownames(asco_cl_genera_shared) <- rownames(asco_shared)
+colnames(asco_cl_genera_shared) <- cl_genus_names
+
+#my loop
+for(i in cl_genus_names){
+  genus_otus <- otu_asco_genus[otu_asco_genus$genus == i, "otu"]
+  genus_shared <- shared[ , genus_otus]
+  if(length(genus_otus) > 1){
+    genus_count <- apply(genus_shared, 1, sum)
+  } else {
+    genus_count <- genus_shared
+  }
+  asco_cl_genera_shared[ , i] <- genus_count
+  
+}
+
+# 3. calculate the relative abundance
+n_seqs <- apply(asco_cl_genera_shared, 1, sum)
+cl_genus_rel_abund <- asco_cl_genera_shared / n_seqs
+
+tot_cl_genus_rel_abund <- numeric()
+for(h in colnames(cl_genus_rel_abund)){
+  y <- mean(cl_genus_rel_abund[ ,h])
+  tot_cl_genus_rel_abund[h] <- y
+}
+sum(tot_cl_genus_rel_abund)
+
+
+L <- sort.list(tot_cl_genus_rel_abund, decreasing = T)
+tot_cl_genus_rel_abund <- tot_cl_genus_rel_abund[L]
+
+top_genera_rel_abund <- tot_cl_genus_rel_abund[tot_cl_genus_rel_abund >= 0.01]
+
+```
+
+The following is a plot of relative abundance by genus within Ascomycota. I have removed all genera that were unclassified. Unclassified genera made up `r tot_genus_rel_abund['unclassified']*100`% of the total Ascomycota.  
+Only the genera with a relative abundance more than 1% of classified genera are displayed here. 
+
+```{r Rel abund by Genus plot, echo=F, include = T}
+top_genera_rel_abund
+
+short_genus <- top_genera_rel_abund
+names(short_genus) <- c("G", "T", "Mi", "C", "St", "I", "Sa", "F", "As", "N", "Ac", "My", "P", "Mo", "Al")
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 4, 8, 0.5, 1 ))
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+
+barplot(height = top_genera_rel_abund, beside=T, horiz = T, axisnames = F, xlab = "Relative abundance", xlim = c(0,0.2))
+axis(side = 2, las = 1, labels = names(top_genera_rel_abund), at = c(0.7,1.9,3.1,4.3,5.5,6.7,7.9,9.1,10.3,11.5,12.7,13.9,15.1,16.3,17.5))
+box()
+
+
+```
+
+```{r genus by lin, echo = F, include = F}
+# 3. calculate the relative abundance
+genus_rel_abund <- data.frame(SampleID, genus_rel_abund)
+top_genus_ra <- genus_rel_abund[1:9]
+
+meta_top_genus <- inner_join(top_genus_ra, metadata, by = c( "SampleID" = "Code"))
+
+
+# 3. calculate the relative abundance for native
+SampleID <- rownames(asco_cl_genera_shared)
+natID <- SampleID[grep(pattern = "Nat", SampleID)]
+nonID <- SampleID[grep(pattern = "Inv", SampleID)]
+
+
+nat_shared <- asco_cl_genera_shared[natID, ]
+non_shared <- asco_cl_genera_shared[nonID, ]
+
+nat_shared <- nat_shared[ ,1:8]
+rownames(nat_shared) <- natID
+
+non_shared <- non_shared[ ,1:8]
+rownames(non_shared) <- nonID
+
+nat_seqs <- apply(nat_shared, 1, sum)
+nat_phylum_rel_abund <- nat_shared / nat_seqs
+
+nat_av_ra <- apply(nat_phylum_rel_abund, 2, mean)
+nat_sd_ra <- apply(nat_phylum_rel_abund, 2, sd)
+nat_se_ra <- nat_sd_ra/sqrt(23)
+
+
+# 3. calculate the relative abundance for invasive
+
+non_seqs <- apply(non_shared, 1, sum)
+non_phylum_rel_abund <- non_shared / non_seqs
+
+non_av_ra <- apply(non_phylum_rel_abund, 2, mean)
+non_sd_ra <- apply(non_phylum_rel_abund, 2, sd)
+non_se_ra <- non_sd_ra/sqrt(24)
+
+lin_rel_average <- data.frame(Native = nat_av_ra, NonNative = non_av_ra)
+
+top_av_genus <- as.matrix(lin_rel_average)
+top_av_genus <- t(top_av_genus)
+
+x0_non <- non_av_ra - non_se_ra
+x1_non <- non_av_ra + non_se_ra
+
+x0_nat <- nat_av_ra - nat_se_ra
+x1_nat <- nat_av_ra + nat_se_ra
+
+an_ra_gib <- aov(meta_top_genus$Gibberella ~ meta_top_genus$Site * meta_top_genus$Lineage)
+summary(an_ra_gib)
+
+an_ra_mic <- aov(meta_top_genus$Microdochium ~ meta_top_genus$Site * meta_top_genus$Lineage)
+summary(an_ra_mic)
+
+an_ra_tet <- aov(meta_top_genus$Tetracladium ~ meta_top_genus$Site * meta_top_genus$Lineage)
+summary(an_ra_tet)
+
+an_ra_stag <- aov(meta_top_genus$Stagonospora ~ meta_top_genus$Site * meta_top_genus$Lineage)
+summary(an_ra_stag)
+
+an_ra_cad <- aov(meta_top_genus$Cadophora ~ meta_top_genus$Site * meta_top_genus$Lineage)
+summary(an_ra_cad)
+
+an_ra_ily <- aov(meta_top_genus$Ilyonectria ~ meta_top_genus$Site * meta_top_genus$Lineage)
+summary(an_ra_ily)
+
+an_ra_sac <- aov(meta_top_genus$Saccharicola ~ meta_top_genus$Site * meta_top_genus$Lineage)
+summary(an_ra_sac)
+
+an_ra_fus <- aov(meta_top_genus$unclassified ~ meta_top_genus$Site * meta_top_genus$Lineage)
+summary(an_ra_fus)
+
+```
+
+```{r Rel abund by Genus and Lin, echo=F, include = T}
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 4, 8, 0.5, 8 ))
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+
+barplot(height = top_av_genus, beside=T, horiz = T, axisnames = F, xlab = "Relative abundance", xlim = c(0,0.8), col = c("white", "gray"))
+arrows(x0 = x0_nat + 0.005, x1 = x1_nat + 0.005, y0 = c(1.5,4.5,7.5,10.5,13.5,16.5,19.5,22.5), angle = 0, lwd = 1.5)
+arrows(x0 = x0_non, x1 = x1_non, y0 = c(2.5,5.5,8.5,11.5,14.5,17.5,20.5,23.5), angle = 0, lwd = 1.5)
+axis(side = 2, las = 1, labels = colnames(top_av_genus), at = c(2,5,8,11,14,17,20,23))
+mtext("Significant Differences",side = 1, line = -16, at = 0.6, cex = 1)
+mtext(c("Lineage","Site"),side = 1, line = -15, at = c(0.52,0.72), cex = 0.9)
+
+arrows(x0 = c(0.42,0.62), y0 = 1, y1 = 23, angle = 0, lwd = 0.75)
+mtext("ns",side = 1, line = c(-1.5,-3.25,-5,-6.75,-8.5,-10.25,-12,-13.75), at = 0.52, cex = 1)
+mtext(c("*","ns","ns","**","ns","ns","*","*"),side = 1, line = c(-0.75,-3.25,-5,-6,-8.5,-10.25,-11.25,-13), at = 0.72, cex = c(2,1,1,2,1,1,2,2))
+
+
+
+legend(0.82, 23, c("Non-native", "Native" ), pch = 22, col = "black", pt.bg = c("gray", "white"), xpd = T)
+
+```
+
+### By Function
+I ran my taxonomy data through the FUNGuild database to get functional guilds for all taxa. Unclassified taxa were obviously not matched. FUNGuild gives trophic mode and Guild as outputs. Guild is nested within trophic mode, so I have shown the data by trophic mode, then guild
+
+#### Trophic Mode
+
+```{r funguild setup, echo = F, include = F}
+
+guilds <- read.table("data/for_funguild.guilds_matched.txt", header = T, sep = "\t", stringsAsFactors = F)
+
+#make metadata file for guilds
+guild_data <- guilds[ , -c(2:48)]
+guild_data$Trophic.Mode <- as.factor(guild_data$Trophic.Mode)
+guild_data$Guild <- as.factor(guild_data$Guild)
+summary(guild_data)
+
+matched_guild_shared <- guilds[ , c(1:48)]
+matched_guild_shared <- data.frame(guild_data$Trophic.Mode, matched_guild_shared)
+
+### I want rel abundance of each guild
+trans_matched_guild_shared <- data.frame(t(matched_guild_shared))
+
+# how do I combine the number of sequences from each of the OTUs
+
+# in the below, 1 is for rows and 2 is for columns
+trans_matched <- trans_matched_guild_shared[-c(1,2), ]
+
+# how do I repeat this for all phyla?
+#make a loop
+
+#need to know the unique trophic modes 
+trophic_names <- unique(guild_data$Trophic.Mode)
+# need somwhere to put data - a new shared file
+n_modes <- length(trophic_names)
+n_samples <- nrow(trans_matched)
+trophic_shared <- data.frame(matrix(0, nrow = n_samples, ncol = n_modes))
+rownames(trophic_shared) <- rownames(trans_matched)
+colnames(trophic_shared) <- trophic_names
+
+#my loop
+for(i in trophic_names){
+  trophic_otus <- guild_data[guild_data$Trophic.Mode == i, "OTU"]
+  guild_shared <- shared[ , trophic_otus]
+  if(length(trophic_otus) > 1){
+    trophic_count <- apply(guild_shared, 1, sum)
+  } else {
+    trophic_count <- guild_shared
+  }
+  trophic_shared[ , i] <- trophic_count
+  
+}
+
+# 3. calculate the relative abundance
+n_seqs <- apply(trophic_shared, 1, sum)
+trophic_rel_abund <- trophic_shared / n_seqs
+
+plot <- rownames(trophic_rel_abund) 
+trophic_rel_abund <- data.frame(SampleID = plot, trophic_rel_abund)
+
+meta_trophic <- inner_join(trophic_rel_abund, metadata, by = c( "SampleID" = "Code"))
+rownames(meta_trophic) <- meta_trophic$SampleID
+
+
+tot_trophic_rel_abund <- numeric()
+for(h in colnames(trophic_rel_abund)){
+  y <- mean(trophic_rel_abund[ ,h])
+  tot_trophic_rel_abund[h] <- y
+}
+sum(tot_trophic_rel_abund)
+tot_trophic_rel_abund
+
+L <- sort.list(tot_trophic_rel_abund, decreasing = T)
+tot_trophic_rel_abund <- tot_trophic_rel_abund[L]
+
+
+```
+
+I created a plot of relative abundance by trophic mode
+
+```{r Trophic mode plot, echo = F, include = T}
+tot_trophic_rel_abund
+short_trophic <- tot_trophic_rel_abund
+names(short_trophic)<- c("Path", "Sap", "P-Sym", "Sap-P", "Sym", "P-Sap-Sym")
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 4, 15, 0.5, 1 ))
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+
+barplot(height = tot_trophic_rel_abund, beside=T, horiz = T, axisnames = F, xlab = "Relative abundance", xlim = c(0,0.5))
+axis(side = 2, las = 1, labels = names(tot_trophic_rel_abund), at = c(0.7,1.9,3.1,4.3,5.5,6.7))
+box()
+```
+
+Pathogens are most abundant. The pathotroph-symbiotroph category is difficult to know what to do with. I assume they have been shown to have multiple trophic modes depending on the host.  
+
+```{r trophic by lin, echo = F, include = F}
+# 3. calculate the relative abundance
+SampleID <- rownames(trophic_shared)
+natID <- SampleID[grep(pattern = "Nat", SampleID)]
+nonID <- SampleID[grep(pattern = "Inv", SampleID)]
+
+
+nat_shared <- trophic_shared[natID, ]
+non_shared <- trophic_shared[nonID, ]
+
+
+# 3. calculate the relative abundance for native
+
+nat_seqs <- apply(nat_shared, 1, sum)
+nat_trophic_rel_abund <- nat_shared / nat_seqs
+
+
+# 3. calculate the relative abundance for invasive
+
+non_seqs <- apply(non_shared, 1, sum)
+non_trophic_rel_abund <- non_shared / non_seqs
+
+nat_av_ra <- apply(nat_trophic_rel_abund, 2, mean)
+nat_sd_ra <- apply(nat_trophic_rel_abund, 2, sd)
+nat_se_ra <- nat_sd_ra/sqrt(23)
+
+non_av_ra <- apply(non_trophic_rel_abund, 2, mean)
+non_sd_ra <- apply(non_trophic_rel_abund, 2, sd)
+non_se_ra <- non_sd_ra/sqrt(24)
+
+lin_rel_average <- data.frame(Native = nat_av_ra, NonNative = non_av_ra)
+
+top_av_trophic <- as.matrix(lin_rel_average)
+top_av_trophic <- t(top_av_trophic)
+
+x0_non <- non_av_ra - non_se_ra
+x1_non <- non_av_ra + non_se_ra
+
+x0_nat <- nat_av_ra - nat_se_ra
+x1_nat <- nat_av_ra + nat_se_ra
+
+an_ra_path <- aov(meta_trophic$Pathotroph ~ meta_trophic$Site * meta_trophic$Lineage)
+summary(an_ra_path)
+
+an_ra_sap <- aov(meta_trophic$Saprotroph ~ meta_trophic$Site * meta_trophic$Lineage)
+summary(an_ra_sap)
+
+an_ra_sym <- aov(meta_trophic$Symbiotroph ~ meta_trophic$Site * meta_trophic$Lineage)
+summary(an_ra_sym)
+
+an_ra_psym <- aov(meta_trophic$Pathotroph.Symbiotroph ~ meta_trophic$Site * meta_trophic$Lineage)
+summary(an_ra_psym)
+
+an_ra_psap <- aov(meta_trophic$Pathotroph.Saprotroph ~ meta_trophic$Site * meta_trophic$Lineage)
+summary(an_ra_psap)
+
+an_ra_pss <- aov(meta_trophic$Pathotroph.Saprotroph.Symbiotroph ~ meta_trophic$Site * meta_trophic$Lineage)
+summary(an_ra_pss)
+
+```
+
+```{r Rel abund by trophic mode and Lin, echo=F, include = T}
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 4, 15, 0.5, 2 ))
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+
+barplot(height = top_av_trophic, beside=T, horiz = T, axisnames = F, xlab = "Relative abundance", xlim = c(0,1), col = c("white", "gray"))
+arrows(x0 = x0_nat + 0.005, x1 = x1_nat + 0.005, y0 = c(1.5,4.5,7.5,10.5,13.5,16.5,19.5,22.5), angle = 0, lwd = 1.5)
+arrows(x0 = x0_non, x1 = x1_non, y0 = c(2.5,5.5,8.5,11.5,14.5,17.5,20.5,23.5), angle = 0, lwd = 1.5)
+axis(side = 2, las = 1, labels = colnames(top_av_trophic), at = c(2,5,8,11,14,17))
+mtext("Significant Differences",side = 1, line = -16, at = 0.8, cex = 1)
+mtext(c("Lineage","Site"),side = 1, line = -15, at = c(0.72,0.92), cex = 0.9)
+
+arrows(x0 = c(0.62,0.82), y0 = 1, y1 = 17, angle = 0, lwd = 0.75)
+mtext(c("*","*","ns","**","ns","ns"),side = 1, line = c(-1,-3.33,-6.33,-8,-11,-13.33), at = 0.92, cex = c(2,2,1,2,1,1))
+mtext(c("ns","ns","ns","*","ns","ns"),side = 1, line = c(-1.66,-4,-6.33,-8,-11,-13.33), at = 0.72, cex = c(1,1,1,2,1,1))
+
+legend(1.02, 23.5, c("Non-native", "Native" ), pch = 22, col = "black", pt.bg = c("gray", "white"), xpd = T)
+
+
+```
+
+#####Community by Trophic mode
+Here is a community analysis by trophic mode. First I ran a Permanova to see if the sites had significatly different communities of trophic modes.
+
+```{r perm by trophic mode, echo = F, include = T}
+perm_trophic <- adonis(trophic_shared ~ Site * Lineage, data = meta_alpha)
+perm_trophic
+
+```
+
+```{r trophic NMDS setup, echo = F, include = F}
+trophicNMDS <- metaMDS(trophic_shared, try = 20, trymax = 300, k=2)
+
+trophicNMDS <- metaMDS(trophic_shared, previous.best = trophicNMDS)
+
+trophic_scores <- scores(trophicNMDS)
+
+trophic_scores <- as.data.frame(trophic_scores)
+
+```
+
+Here is an NMDS grouped by trophic mode (stress = `r trophicNMDS$stress`)
+
+```{r trophicNMDS plot, echo = F, include = T}
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "brown", Rt2 = "gray", SB = "purple")
+pchs <- c(Nat = 1, Inv = 16)
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 2, 3, 0.5, 9 ))
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+axis(side = 1)
+axis(side = 2, las = 1)
+points(x = trophic_scores$NMDS1, y = trophic_scores$NMDS2, pch = pchs[as.character(meta_alpha$Lineage)], 
+      col = clrs[as.character(meta_alpha$Site)], cex = 1.5, lwd = 2)
+
+mtext(side = 1, line = 2, text = "NMDS1")
+mtext(side = 2, line = 3, text = "NMDS2" )
+
+ordiellipse(trophicNMDS, meta_alpha$Site == "BL", show.groups = TRUE, kind = "sd", col = "blue", lty = 1, lwd = 2.0)
+ordiellipse(trophicNMDS, meta_alpha$Site == "CB", show.groups = TRUE, kind = "sd", col = "red", lty = 1, lwd = 2.0)
+ordiellipse(trophicNMDS, meta_alpha$Site == "CH", show.groups = TRUE, kind = "sd", col = "dark green", lty = 1, lwd = 2.0)
+ordiellipse(trophicNMDS, meta_alpha$Site == "CM", show.groups = TRUE, kind = "sd", col = "coral", lty = 1, lwd = 2.0)
+ordiellipse(trophicNMDS, meta_alpha$Site == "CR", show.groups = TRUE, kind = "sd", col = "black", lty = 1, lwd = 2.0)
+ordiellipse(trophicNMDS, meta_alpha$Site == "Rt2", show.groups = TRUE, kind = "sd", col = "gray", lty = 1, lwd = 2.0)
+
+legend_text <- c("Bullard Lake", "Chelsea", "Cecil Bay", "Cheboygan Marsh", "Castle Rock", "Route 2", "Sturgeon Bay","Point LeBarb")
+legend(1.08,1.08, legend_text, pch = 16, 
+       col = c("blue","dark green","red","coral","black","gray","purple", "brown"), 
+       pt.lwd = 2, pt.cex = 1.5, xpd = T)
+
+legend_text2 <- c("Native", "Non-Native")
+legend(1.08,-0.643, legend_text2, pch = c(1,16), pt.lwd = 2, pt.cex = 1.5, xpd = T)
+box()
+```
+
+I performed Kruskel-Wallace tests to see if any individual trophic modes were significantly different by site. None were. 
+
+#### Guild
+
+```{r guild setup, echo = F, include = F}
+
+#need to know the unique trophic modes 
+guild_names <- unique(guild_data$Guild)
+# need somwhere to put data - a new shared file
+n_guilds <- length(guild_names)
+n_samples <- nrow(trans_matched_guild_shared)
+all_guild_shared <- data.frame(matrix(0, nrow = n_samples, ncol = n_guilds))
+rownames(all_guild_shared) <- rownames(trans_matched_guild_shared)
+colnames(all_guild_shared) <- guild_names
+
+#my loop
+for(i in guild_names){
+  guild_otus <- guild_data[guild_data$Guild == i, "OTU"]
+  new_shared <- shared[ , guild_otus]
+  if(length(guild_otus) > 1){
+    guild_count <- apply(new_shared, 1, sum)
+  } else {
+    guild_count <- new_shared
+  }
+  all_guild_shared[ , i] <- guild_count
+  
+}
+
+# 3. calculate the relative abundance
+n_seqs <- apply(all_guild_shared, 1, sum)
+guild_rel_abund <- all_guild_shared / n_seqs
+
+tot_guild_rel_abund <- numeric()
+for(h in colnames(guild_rel_abund)){
+  y <- mean(guild_rel_abund[ ,h])
+  tot_guild_rel_abund[h] <- y
+}
+sum(tot_guild_rel_abund)
+tot_guild_rel_abund
+
+L <- sort.list(tot_guild_rel_abund, decreasing = T)
+tot_guild_rel_abund <- tot_guild_rel_abund[L]
+
+```
+
+Here are the top 10 functional guilds by relative abundance. The bar plot is numbered by the most abundant to least. Refer to the list for guild names
+
+```{r guild plot, echo = F, include=T}
+tot_guild_rel_abund[1:10]
+guild_num_names <- tot_guild_rel_abund
+names(guild_num_names) <- c(1:24)
+barplot(height = guild_num_names[1:10], beside=T)
+
+```
+
+```{r per by guild, echo =F, include = T}
+perm_guild <- adonis(all_guild_shared ~ Site * Lineage, data = meta_alpha)
+perm_guild
+```
+The permanova by functional guild still shows significant difference by site
+
+
+I performed Kruskel-Wallace tests to see if any individual guilds were significantly different by site. None were. 
+
+
+
+
+
+
+
+
+plot NMDS scores against nitrogen content
+
+```{r nutrients by community, echo = F, include = T}
+
+meta_alpha$SoilN <- as.numeric(meta_alpha$SoilN)
+ma_finite <- meta_alpha[is.finite(meta_alpha$SoilN), ]
+L <- names(NMDS1) %in% ma_finite$Code 
+NMDS1 <- NMDS1[L]
+NMDS2 <- NMDS2[L]
+
+reg_n <- lm(ma_finite$SoilN ~ NMDS1 * NMDS2)
+reg_n
+summary(reg_n)
+
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "orange", Rt2 = "gray", SB = "purple")
+pchs <- c(Nat = 21, Inv = 23)
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 5, 5, 0, 0 ))
+plot.window(xlim = c(0,3), ylim = c(-1.5,1.5))
+axis(side = 1)
+axis(side = 2, las = 1)
+points(x = ma_finite$SoilN, y = NMDS1, pch = pchs[as.character(ma_finite$Lineage)], 
+      bg = clrs[as.character(ma_finite$Site)], cex = 1)
+
+mtext(side = 1, line = 2, text = "Percent N")
+mtext(side = 2, line = 3, text = "NMDS1 scores" )
+
+legend_text <- c("Bullard Lake", "Cecil Bay", "Chelsea", "Cheboygan Marsh", "Castle Rock", "Point LeBarb", "Route 2", "Sturgeon Bay")
+legend("topright", legend_text, pch = 15, 
+       col = c("blue","red","dark green","coral","black","orange","gray","purple"))
+
+legend_text2 <- c("Native", "Non-Native")
+legend("topleft", legend_text2, pch = c(1,5))
+
+
+```
+
+Now plot against P
+
+```{r phosphorus by community, echo = F, include = T}
+
+reg_p <- lm(ma_finite$SoilP ~ NMDS2 * NMDS1)
+reg_p
+summary(reg_p)
+
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "orange", Rt2 = "gray", SB = "purple")
+pchs <- c(Nat = 21, Inv = 23)
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 5, 5, 0, 0 ))
+plot.window(xlim = c(0,10), ylim = c(-1.5,1.5))
+axis(side = 1)
+axis(side = 2, las = 1)
+points(x = ma_finite$SoilP, y = NMDS2, pch = pchs[as.character(ma_finite$Lineage)], 
+      bg = clrs[as.character(ma_finite$Site)], cex = 1)
+
+mtext(side = 1, line = 2, text = "Soil P")
+mtext(side = 2, line = 3, text = "NMDS2 scores" )
+
+legend_text <- c("Bullard Lake", "Cecil Bay", "Chelsea", "Cheboygan Marsh", "Castle Rock", "Point LeBarb", "Route 2", "Sturgeon Bay")
+legend("topright", legend_text, pch = 15, 
+       col = c("blue","red","dark green","coral","black","orange","gray","purple"))
+
+legend_text2 <- c("Native", "Non-Native")
+legend("topleft", legend_text2, pch = c(1,5))
+
+
+```
+
+Adding nutrients into PerMANOVA
+
+```{r perm with nutrients, echo = F, include = T}
+rownames(ma_finite) <- ma_finite$Code
+ma_finite$SoilP <- as.numeric(ma_finite$SoilP)
+ma_finite$TisN <- as.numeric(ma_finite$TisN)
+
+shared_finite <- shared[rownames(ma_finite) , ]
+
+perm_nutrient <- adonis(shared_finite ~ SoilN + SoilP, data = ma_finite, method = "bray")
+perm_nutrient
+```
+
+## Soil Saturation
+
+```{r separate shared file by sat-unsat, echo = F, include = T}
+codes <- rownames(shared)
+shared <- data.frame(codes, shared)
+meta_shared <- inner_join(shared, metadata, by = c("codes"="Code"))
+
+UN_shared <- meta_shared[meta_shared$Sat_lev == "UN", ]
+UN_shared <- UN_shared[ , 2:252]
+
+meta_UN <- meta_shared[meta_shared$Sat_lev == "UN",253:263 ]
+
+perm_UN <- adonis(UN_shared ~ Site + Lineage, data = meta_UN)
+perm_UN
+
+
+```
+
+Communities found in Native and Non-Native roots are not different in Unsaturated populations
+
+```{r permanova by water level, echo = F, include = T}
+
+shared <- shared[,-1]
+
+perm_wtr <- adonis(shared ~ Sat_lev * Site, data = meta_alpha)
+perm_wtr
+
+
+```
+
+```{r NMDS plot by sat level, include=T, echo = F}
+
+clrs <- c(UN = "black", SAT = "dark green", SAT_HI = "blue")
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 5, 5, 0.5, 8 ))
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+axis(side = 1)
+axis(side = 2, las = 1)
+points(x = NMDS_scores$NMDS1, y = NMDS_scores$NMDS2, pch = 16, 
+      col = clrs[as.character(meta_alpha$Sat_lev)], cex = 1.5)
+
+mtext(side = 1, line = 2, text = "NMDS1")
+mtext(side = 2, line = 3, text = "NMDS2" )
+
+ordiellipse(NMDS, meta_alpha$Sat_lev == "UN", show.groups = TRUE, kind = "sd", col = "black", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Sat_lev == "SAT", show.groups = TRUE, kind = "sd", col = "dark green", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Sat_lev == "SAT_HI", show.groups = TRUE, kind = "sd", col = "blue", lty = 1, lwd = 2.0)
+
+legend_text <- c("Unsaturated", "Saturated", "Standing Water")
+legend(1.08,1.08, legend_text, pch = 16, 
+       col = c("black","dark green","blue"), 
+       pt.lwd = 2, pt.cex = 1.5, xpd = T)
+
+box()
+
+```
