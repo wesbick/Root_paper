@@ -113,6 +113,9 @@ library(reshape2)
 cor.nat <- melt(nat_cors)[melt(upper.tri(nat_cors))$value, ]
 cor.inv <- melt(inv_cors)[melt(upper.tri(inv_cors))$value, ]
 
+L <- order(cor.inv$Var1)
+cor.inv <- cor.inv[L, ]
+
 ```
 Use this 3 column matrix to make networks. First we will separate positive correlations from negative
 
@@ -193,7 +196,147 @@ keep_sd <- sd(cor.null$value)
 
 ```
 
+```{r corrected null model invasive, echo = F, include = F}
+# create a random community matrix with same number of samples and otus.
+# OTU abundances should reflect reality within each 
+# OTU sequence abundance should reflect my dataset
 
+good_inv_cors <- inv_cors
+iters <- 500
+x <- 1
+for(d in colnames(all_inv)){
+  
+  focalmat <- matrix(NA, ncol = ncol(all_inv), nrow = iters)
+  colnames(focalmat) <- colnames(all_inv)
+  rownames(focalmat) <- 1:iters
+  for(t in 1:iters){
+    nullmat2 <- matrix(NA, ncol = ncol(all_inv), nrow = nrow(all_inv))
+    colnames(nullmat2) <- colnames(all_inv)
+    rownames(nullmat2) <- rownames(all_inv)
+    for(i in colnames(nullmat2)){
+      if(i == d){
+        vec <- all_inv[ , i]
+      }else{
+        vec <- sample(all_inv[ , i])
+      }
+      nullmat2[ , i] <- vec
+    }
+    null_cors2 <- rep(NA, ncol(nullmat2))
+    names(null_cors2) <- colnames(nullmat2)
+    focal <- nullmat2[ , d]
+
+    for(i in 1:length(null_cors2)){
+      y <- nullmat2[ , i]
+      if(i == d){
+        rho <- 1
+        null_cors2[i] <- rho
+      }else{
+        spear <- cor(focal, y, method = "spearman")
+        null_cors2[i] <- spear
+      }
+    }
+    focalmat[t, ] <- null_cors2
+  }  
+
+  pvec <- rep(1, ncol(focalmat))
+  names(pvec) <- colnames(focalmat)
+  mycor <- inv_cors[d, ]
+  
+  for(g in colnames(focalmat)){
+    if(mycor[g] < 0){
+      p <- sum(focalmat[ , g] <= mycor[g])/iters
+    }else{
+      p <- sum(focalmat[ , g] >= mycor[g])/iters
+    }
+    pvec[g] <- p
+  }
+  nonsigs <- names(pvec[pvec > 0.05])
+  good_inv_cors[d, nonsigs] <- 0
+  
+  if(x %% 10 == 0){
+    cat(d, "\n")
+  }
+  x <- x+1
+
+
+}
+
+cor.good.inv <- melt(good_inv_cors)[melt(upper.tri(good_inv_cors))$value, ]
+cor.good.inv <- cor.good.inv[cor.good.inv$value != 0, ]
+
+
+```
+
+```{r corrected null model native, echo = F, include = F}
+# create a random community matrix with same number of samples and otus.
+# OTU abundances should reflect reality within each 
+# OTU sequence abundance should reflect my dataset
+
+good_nat_cors <- nat_cors
+iters <- 500
+x <- 1
+for(d in colnames(all_nat)){
+  
+  focalmat <- matrix(NA, ncol = ncol(all_nat), nrow = iters)
+  colnames(focalmat) <- colnames(all_nat)
+  rownames(focalmat) <- 1:iters
+  for(t in 1:iters){
+    nullmat2 <- matrix(NA, ncol = ncol(all_nat), nrow = nrow(all_nat))
+    colnames(nullmat2) <- colnames(all_nat)
+    rownames(nullmat2) <- rownames(all_nat)
+    for(i in colnames(nullmat2)){
+      if(i == d){
+        vec <- all_nat[ , i]
+      }else{
+        vec <- sample(all_nat[ , i])
+      }
+      nullmat2[ , i] <- vec
+    }
+    null_cors2 <- rep(NA, ncol(nullmat2))
+    names(null_cors2) <- colnames(nullmat2)
+    focal <- nullmat2[ , d]
+
+    for(i in 1:length(null_cors2)){
+      y <- nullmat2[ , i]
+      if(i == d){
+        rho <- 1
+        null_cors2[i] <- rho
+      }else{
+        spear <- cor(focal, y, method = "spearman")
+        null_cors2[i] <- spear
+      }
+    }
+    focalmat[t, ] <- null_cors2
+  }  
+
+  pvec <- rep(1, ncol(focalmat))
+  names(pvec) <- colnames(focalmat)
+  mycor <- nat_cors[d, ]
+  
+  for(g in colnames(focalmat)){
+    if(mycor[g] < 0){
+      p <- sum(focalmat[ , g] <= mycor[g])/iters
+    }else{
+      p <- sum(focalmat[ , g] >= mycor[g])/iters
+    }
+    pvec[g] <- p
+  }
+  nonsigs <- names(pvec[pvec > 0.05])
+  good_nat_cors[d, nonsigs] <- 0
+  
+  if(x %% 10 == 0){
+    cat(d, "\n")
+  }
+  x <- x+1
+
+
+}
+
+cor.good.nat <- melt(good_nat_cors)[melt(upper.tri(good_nat_cors))$value, ]
+cor.good.nat <- cor.good.nat[cor.good.nat$value != 0, ]
+
+
+```
 
 ```{r import taxonomy files, echo = F, include = F}
 source("~/git_repos/Root_paper/ITS/code/seqfun.R")
@@ -209,7 +352,7 @@ rownames(ftaxonomy) <- ftaxonomy$otu
 We are choosing a cutoff of >0.6 for significant correlations. The following code creates nodes using OTUs that meet correlation cutoff criteria and corresponding taxonomic information
 
 ```{r Native positive correlations, echo = F, include = T}
-pos.nat <- cor.nat[cor.nat$value > 0.6 & cor.nat$value < 1, ]
+pos.nat <- cor.good.nat[cor.good.nat$value > 0 & cor.good.nat$value < 1, ]
 
 pos.nat$Var1 <- as.character(pos.nat$Var1)
 pos.nat$Var2 <- as.character(pos.nat$Var2)
@@ -253,7 +396,7 @@ plot(ceb, nat_pos, edge.arrow.size = 0.4, vertex.label = NA)
 ```{r native negative correlations, echo = F, include=T}
 # Negative
 
-neg.nat <- cor.nat[cor.nat$value < -0.6 & cor.nat$value > -1, ]
+neg.nat <- cor.good.nat[cor.good.nat$value < -0 & cor.good.nat$value > -1, ]
 neg.nat$Var1 <- as.character(neg.nat$Var1)
 neg.nat$Var2 <- as.character(neg.nat$Var2)
 nat_neg_nodes <- c(neg.nat$Var1, neg.nat$Var2)
@@ -293,7 +436,7 @@ box()
 
 ```
 ```{r inv pos correlations, echo = F, include = T}
-pos.inv <- cor.inv[cor.inv$value > 0.6 & cor.inv$value < 1, ]
+pos.inv <- cor.good.inv[cor.good.inv$value > 0 & cor.good.inv$value < 1, ]
 
 pos.inv$Var1 <- as.character(pos.inv$Var1)
 pos.inv$Var2 <- as.character(pos.inv$Var2)
@@ -334,7 +477,7 @@ plot(ceb.in, inv_pos, edge.arrow.size = 0.4, vertex.label = NA)
 ```
 
 ```{r inv neg correlations, echo = F, include = T}
-neg.inv <- cor.inv[cor.inv$value < -0.6 & cor.inv$value > -1, ]
+neg.inv <- cor.good.inv[cor.good.inv$value < 0 & cor.good.inv$value > -1, ]
 
 neg.inv$Var1 <- as.character(neg.inv$Var1)
 neg.inv$Var2 <- as.character(neg.inv$Var2)
