@@ -264,6 +264,8 @@ for(d in colnames(all_inv)){
 cor.good.inv <- melt(good_inv_cors)[melt(upper.tri(good_inv_cors))$value, ]
 cor.good.inv <- cor.good.inv[cor.good.inv$value != 0, ]
 
+L <- order(cor.good.inv$Var1)
+cor.good.inv <- cor.good.inv[L, ]
 
 ```
 
@@ -335,6 +337,9 @@ for(d in colnames(all_nat)){
 cor.good.nat <- melt(good_nat_cors)[melt(upper.tri(good_nat_cors))$value, ]
 cor.good.nat <- cor.good.nat[cor.good.nat$value != 0, ]
 
+L <- order(cor.good.nat$Var1)
+cor.good.nat <- cor.good.nat[L, ]
+
 
 ```
 
@@ -349,7 +354,84 @@ ftaxonomy$otu <- paste("F_", ftaxonomy$otu)
 rownames(ftaxonomy) <- ftaxonomy$otu
 
 ```
-We are choosing a cutoff of >0.6 for significant correlations. The following code creates nodes using OTUs that meet correlation cutoff criteria and corresponding taxonomic information
+
+
+```{r Native correlations, echo = F, include = T}
+cor.good.nat$Var1 <- as.character(cor.good.nat$Var1)
+cor.good.nat$Var2 <- as.character(cor.good.nat$Var2)
+nat_nodes <- c(cor.good.nat$Var1, cor.good.nat$Var2)
+nat_nodes <- unique(nat_nodes)
+
+L <- order(nat_nodes)
+nat_nodes <- nat_nodes[L]
+bac <- grep("B_", nat_nodes)
+fun <- grep("F_", nat_nodes)
+Taxon <- rep(NA, length(nat_nodes))
+Taxon[bac] <- "Bacteria"
+Taxon[fun] <- "Fungi"
+
+family <- rep(NA, length(nat_nodes))
+bac_otu <- nat_nodes[bac]
+fun_otu <- nat_nodes[fun]
+family[bac] <- btaxonomy[bac_otu, "family"]
+family[fun] <- ftaxonomy[fun_otu, "family"]
+genus <- rep(NA, length(nat_nodes))
+genus[bac] <- btaxonomy[bac_otu, "genus"]
+genus[fun] <- ftaxonomy[fun_otu, "genus"]
+
+nat_nodes <- data.frame("OTU" = nat_nodes, Taxon, "Family" = family, "Genus" = genus)
+
+# graphing networks
+
+nat <- graph_from_data_frame(d=cor.good.nat, vertices=nat_nodes, directed=F) 
+colrs <- c(Bacteria = "gold", Fungi = "tomato")
+V(nat)$color <- colrs[V(nat)$Taxon]
+plot(nat, edge.arrow.size = 0.4, vertex.size = 10, vertex.label = NA, layout = layout_nicely(nat))
+box()
+
+ceb <- cluster_edge_betweenness(nat) 
+dendPlot(ceb, mode="hclust")
+plot(ceb, nat, edge.arrow.size = 0.4, vertex.size = 5, vertex.label = NA)
+
+```
+
+```{r Native correlations, echo = F, include = T}
+cor.good.inv$Var1 <- as.character(cor.good.inv$Var1)
+cor.good.inv$Var2 <- as.character(cor.good.inv$Var2)
+inv_nodes <- c(cor.good.inv$Var1, cor.good.inv$Var2)
+inv_nodes <- unique(inv_nodes)
+
+L <- order(inv_nodes)
+inv_nodes <- inv_nodes[L]
+bac <- grep("B_", inv_nodes)
+fun <- grep("F_", inv_nodes)
+Taxon <- rep(NA, length(inv_nodes))
+Taxon[bac] <- "Bacteria"
+Taxon[fun] <- "Fungi"
+
+family <- rep(NA, length(inv_nodes))
+bac_otu <- inv_nodes[bac]
+fun_otu <- inv_nodes[fun]
+family[bac] <- btaxonomy[bac_otu, "family"]
+family[fun] <- ftaxonomy[fun_otu, "family"]
+genus <- rep(NA, length(inv_nodes))
+genus[bac] <- btaxonomy[bac_otu, "genus"]
+genus[fun] <- ftaxonomy[fun_otu, "genus"]
+
+inv_nodes <- data.frame("OTU" = inv_nodes, Taxon, "Family" = family, "Genus" = genus)
+
+# graphing networks
+
+inv <- graph_from_data_frame(d=cor.good.inv, vertices=inv_nodes, directed=F) 
+colrs <- c(Bacteria = "gold", Fungi = "tomato")
+V(inv)$color <- colrs[V(inv)$Taxon]
+plot(inv, edge.arrow.size = 0.4, vertex.size = 10, vertex.label = NA, layout = layout_nicely(nat))
+box()
+
+ceb <- cluster_edge_betweenness(inv) 
+dendPlot(ceb, mode="hclust")
+plot(ceb, inv, edge.arrow.size = 0.4, vertex.size = 5, vertex.label = NA)
+```
 
 ```{r Native positive correlations, echo = F, include = T}
 pos.nat <- cor.good.nat[cor.good.nat$value > 0 & cor.good.nat$value < 1, ]
@@ -383,12 +465,12 @@ nat_pos_nodes <- data.frame("OTU" = nat_pos_nodes, Taxon, "Family" = family, "Ge
 nat_pos <- graph_from_data_frame(d=pos.nat, vertices=nat_pos_nodes, directed=F) 
 colrs <- c(Bacteria = "gold", Fungi = "tomato")
 V(nat_pos)$color <- colrs[V(nat_pos)$Taxon]
-plot(nat_pos, edge.arrow.size = 0.4, vertex.label = NA)
+plot(nat_pos, edge.arrow.size = 0.4, vertex.size = 10, vertex.label = NA, layout = layout_nicely(nat_pos))
 box()
 
 ceb <- cluster_edge_betweenness(nat_pos) 
 dendPlot(ceb, mode="hclust")
-plot(ceb, nat_pos, edge.arrow.size = 0.4, vertex.label = NA)
+plot(ceb, nat_pos, edge.arrow.size = 0.4, vertex.size = 5, vertex.label = NA)
 
 ```
 
@@ -512,7 +594,418 @@ box()
 
 ```
 
-```{r try a network}
+```{r network_stats}
+# Adjust scientific notation for stats data frame
+options(scipen = 999)
 
+# Create taxonomic relationship function
+# Specify function
+tax_relationship <- function(aa, bb) {
+  # Bacteria-Bacteria edge
+  if (grepl("B_", aa) & grepl("B_", bb)) {
+    return("Bacterial")
+    # Fungi-Fungi edge
+  } else if (grepl("F_", aa) & grepl("F_", bb)){
+    return("Fungal")
+    # Mixed edge
+  } else {
+    return("Mixed")
+  }
+}
+
+# edge relationships
+edge_relate_nat <- rep(NA, nrow(cor.good.nat)) 
+edge_relate_inv <- rep(NA, nrow(cor.good.inv))
+
+
+for(ii in 1:nrow(cor.good.inv)){
+  taxon1 <- cor.good.inv[ii, 1]
+  taxon2 <- cor.good.inv[ii, 2]
+  x <- tax_relationship(taxon1, taxon2)
+  edge_relate_inv[ii] <- x
+}
+
+for(ii in 1:nrow(cor.good.nat)){
+  taxon1 <- cor.good.nat[ii, 1]
+  taxon2 <- cor.good.nat[ii, 2]
+  x <- tax_relationship(taxon1, taxon2)
+  edge_relate_nat[ii] <- x
+}
+
+# add edge relationships to edge table
+cor.good.inv <- data.frame("Var1" = cor.good.inv$Var1,"Var2" = cor.good.inv$Var2,"Relationship" = edge_relate_inv, "value" = cor.good.inv$value)
+
+cor.good.nat <- data.frame("Var1" = cor.good.nat$Var1,"Var2" = cor.good.nat$Var2,"Relationship" = edge_relate_nat, "value" = cor.good.nat$value)
+
+# Create networks
+# Create a network list
+net.list <- vector("list", 6)
+# Name list elements
+names(net.list) <- c("Nat", "Inv", "BACT.Nat", "BACT.Inv", "FUNGI.Nat", "FUNGI.Inv")
+
+# Create networks
+# Loop through list
+for (i in 1 : length(net.list)) {
+  # Create network
+  net.list[[i]] <- graph_from_data_frame(d = edge.list[[i]], vertices = node.list[[i]], directed = FALSE)
+}
+# Create parameter vector
+parameter.vec <- c("Total nodes", "Bacterial nodes", "Fungal nodes", "Mixed nodes", "Mixed bacterial nodes", "Mixed fungal nodes", "Total edges", "Positive edges", "Negative edges", "Bacterial edges", "Bacterial positive edges", "Bacterial negative edges", "Fungal edges", "Fungal positive edges", "Fungal negative edges", "Mixed edges", "Mixed positive edges", "Mixed negative edges", "Network density", "Network diameter", "Clustering coefficient", "Random clustering coefficient", "Clustering coefficient ratio", "Modularity", "Modules", "Median degree", "Mean degree", "Median normalized degree", "Mean normalized degree", "Median node betweenness", "Mean node betweenness", "Median normalized node betweenness", "Median edge betweenness", "Mean edge betweenness", "Median closeness", "Mean closeness", "Median normalized closeness", "Mean normalized closeness")
+# Create data frame for network statistics
+net.stats.mat <- matrix(NA, nrow = length(parameter.vec), ncol = 2)
+colnames(net.stats.mat) <- c("Native", "Invasive")
+rownames(net.stats.mat) <- parameter.vec
+
+# Add total node counts
+net.stats.mat["Total nodes", "Native"] <- nrow(nat_nodes)
+net.stats.mat["Total nodes", "Invasive"] <- nrow(inv_nodes)
+
+# Add bacterial node counts
+net.stats.mat["Bacterial nodes", "Native"] <- sum(grepl("B_", nat_nodes$OTU))
+net.stats.mat["Bacterial nodes", "Invasive"] <- sum(grepl("B_", inv_nodes$OTU))
+
+# Add fungal node counts
+net.stats.mat["Fungal nodes", "Native"] <- sum(grepl("F_", nat_nodes$OTU))
+net.stats.mat["Fungal nodes", "Invasive"] <- sum(grepl("F_", inv_nodes$OTU))
+
+# Add total mixed node counts
+# What is a mixed node?
+
+# Add bacterial mixed node counts
+
+# Add fungal mixed node counts
+
+# Add total edges
+net.stats.mat["Total edges", "Native"] <- length(cor.good.nat$Var1)
+net.stats.mat["Total edges", "Invasive"] <- length(cor.good.inv$Var1)
+
+
+# Add positive edges
+net.stats.mat["Positive edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$value > 0, ])
+net.stats.mat["Positive edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$value > 0, ])
+
+# Add negative edges
+net.stats.mat["Negative edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$value < 0, ])
+net.stats.mat["Negative edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$value < 0, ])
+
+# Add bacterial edges
+net.stats.mat["Bacterial edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$Relationship == "Bacterial", ])
+net.stats.mat["Bacterial edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$Relationship == "Bacterial", ])
+
+# Add bacterial positive edges
+net.stats.mat["Bacterial positive edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$Relationship == "Bacterial" & cor.good.nat$value > 0, ])
+net.stats.mat["Bacterial positive edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$Relationship == "Bacterial" & cor.good.inv$value > 0, ])
+
+# Add bacterial negative edges
+net.stats.mat["Bacterial negative edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$Relationship == "Bacterial" & cor.good.nat$value < 0, ])
+net.stats.mat["Bacterial negative edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$Relationship == "Bacterial" & cor.good.inv$value < 0, ])
+
+# Add fungal edges
+net.stats.mat["Fungal edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$Relationship == "Fungal", ])
+net.stats.mat["Fungal edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$Relationship == "Fungal", ])
+
+# Add fungal positive edges
+net.stats.mat["Fungal positive edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$Relationship == "Fungal" & cor.good.nat$value > 0, ])
+net.stats.mat["Fungal positive edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$Relationship == "Fungal" & cor.good.inv$value > 0, ])
+
+# Add fungal negative edges
+net.stats.mat["Fungal negative edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$Relationship == "Fungal" & cor.good.nat$value < 0, ])
+net.stats.mat["Fungal negative edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$Relationship == "Fungal" & cor.good.inv$value < 0, ])
+
+# Add mixed edges
+net.stats.mat["Mixed edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$Relationship == "Mixed", ])
+net.stats.mat["Mixed edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$Relationship == "Mixed", ])
+
+# Add mixed positive edges
+net.stats.mat["Mixed positive edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$Relationship == "Mixed" & cor.good.nat$value > 0, ])
+net.stats.mat["Mixed positive edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$Relationship == "Mixed" & cor.good.inv$value > 0, ])
+
+# Add mixed negative edges
+net.stats.mat["Mixed negative edges", "Native"] <- nrow(cor.good.nat[cor.good.nat$Relationship == "Mixed" & cor.good.nat$value < 0, ])
+net.stats.mat["Mixed negative edges", "Invasive"] <- nrow(cor.good.inv[cor.good.inv$Relationship == "Mixed" & cor.good.inv$value < 0, ])
+
+# Calculate network density
+net.stats.mat["Network density", "Native"] <- edge_density(nat)
+net.stats.mat["Network density", "Invasive"] <- edge_density(inv)
+
+# Calculate network diameter
+net.stats.mat["Network diameter", "Native"] <- diameter(nat, directed = FALSE, weights = NA)
+net.stats.mat["Network diameter", "Invasive"] <- diameter(inv, directed = FALSE, weights = NA)
+
+# Calculate clustering coefficient
+net.stats.mat["Clustering coefficient", "Native"] <- transitivity(nat, type = "global", weights = NULL)
+net.stats.mat["Clustering coefficient", "Invasive"] <- transitivity(inv, type = "global", weights = NULL)
+
+# Calculate random clustering coefficient
+net.stats.mat["Random clustering coefficient", "Native"] <- transitivity(erdos.renyi.game(vcount(nat), gsize(nat), type = "gnm", loops = FALSE), type = "global", weights = NULL)
+net.stats.mat["Random clustering coefficient", "Invasive"] <- transitivity(erdos.renyi.game(vcount(inv), gsize(inv), type = "gnm", loops = FALSE), type = "global", weights = NULL)
+
+
+# Calculate clustering coefficient ratio
+# Loop through the list
+net.stats.mat["Clustering coefficient ratio", "Native"] <- net.stats.mat["Clustering coefficient", "Native"] / net.stats.mat["Random clustering coefficient", "Native"]
+net.stats.mat["Clustering coefficient ratio", "Invasive"] <- net.stats.mat["Clustering coefficient", "Invasive"] / net.stats.mat["Random clustering coefficient", "Invasive"]
+
+
+# Takes forever so comment for safety once done...
+# Cluster networks to determine modules
+# Create list to hold communities
+#ceg.list <- vector("list", 8)
+# Name list elements
+#names(ceg.list) <- c("T1", "T2", "T1.BACT", "T2.BACT", "T1.FUNGI", "T2.FUNGI", "T1.MIXED", "T2.MIXED")
+# Create networks
+# Loop through list
+#for (i in 1 : length(ceg.list)) {
+#  # Print progress
+#  cat(paste("Clustering", i, "of", length(ceg.list), "networks", "\n", sep = " "))
+#  # Create network
+#  ceg.list[[i]] <- cluster_edge_betweenness(net.list[[i]], directed = FALSE, merges = TRUE, modularity = TRUE, membership = #TRUE, weights = E(net.list[[i]])$EDGE.WEIGHT, bridges = TRUE)
+#}
+
+# Cluster networks to determine modules using a different algorithm
+# Create list to hold communities
+cfg.list <- vector("list", 18)
+# Name list elements
+names(cfg.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+
+# Create networks
+# Loop through list
+for (i in 1 : length(cfg.list)) {
+  # Print progress
+  cat(paste("Clustering", i, "of", length(cfg.list), "networks", "\n", sep = " "))
+  # Create network
+  cfg.list[[i]] <- cluster_fast_greedy(net.list[[i]], merges = TRUE, modularity = TRUE, membership = TRUE, weights = E(net.list[[i]])$EDGE.WEIGHT)
+}
+
+# Calculate modularity
+# Loop through list
+for (i in 1 : length(net.list)) {
+  # Add modularity to the data frame
+  net.stats.df[net.stats.df$Parameter == "Modularity", (i + 1)] <- modularity(net.list[[i]], membership = membership(cfg.list[[i]]))
+}
+
+# Add number of modules to the data frame
+# Loop through the list
+for (i in 1 : length(net.list)) {
+  # Add to data frame
+  net.stats.df[net.stats.df$Parameter == "Modules", (i + 1)] <- length(cfg.list[[i]])
+}
+
+# Calculate degree
+# Create list for non-normalized degree calculations
+deg.list <- vector("list", 18)
+# Name list elements
+names(deg.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+
+# Create list for normalized degree calculations
+norm.deg.list <- vector("list", 18)
+# Name list elements
+names(norm.deg.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+
+# Calculate non-normalized degree
+# Loop through the list
+for (i in 1 : length(deg.list)) {
+  # Calculate degree
+  deg.list[[i]] <- degree(net.list[[i]], v = V(net.list[[i]]), normalized = FALSE)
+  # Calculate normalized degree
+  norm.deg.list[[i]] <- degree(net.list[[i]], v = V(net.list[[i]]), normalized = TRUE)
+}
+
+# Add degree to data frame
+# Loop through list
+for (i in 1 : length(deg.list)) {
+  # Add median non-normalized degree
+  net.stats.df[net.stats.df$Parameter == "Median degree", (i + 1)] <- median(deg.list[[i]])
+  # Add mean non-normalized degree
+  net.stats.df[net.stats.df$Parameter == "Mean degree", (i + 1)] <- mean(deg.list[[i]])
+  # Add median normalized degree
+  net.stats.df[net.stats.df$Parameter == "Median normalized degree", (i + 1)] <- median(norm.deg.list[[i]])
+  # Add mean normalized degree
+  net.stats.df[net.stats.df$Parameter == "Mean normalized degree", (i + 1)] <- mean(norm.deg.list[[i]])
+}
+
+# Calculate betweenness
+# Create list for non-normalized node calculations
+node.betw.list <- vector("list", 18)
+# Name list elements
+names(node.betw.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+
+# Create list for normalized node calculations
+norm.node.betw.list <- vector("list", 18)
+# Name list elements
+names(norm.node.betw.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+
+# Create list edge calculations
+edge.betw.list <- vector("list", 18)
+# Name list elements
+names(edge.betw.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+
+# Calculate non-normalized degree
+# Loop through the list
+for (i in 1 : length(node.betw.list)) {
+  # Calculate node betweenness
+  node.betw.list[[i]] <- betweenness(net.list[[i]], V(net.list[[i]]), directed = FALSE, weights = NULL, nobigint = FALSE, normalized = FALSE)
+  # Calculate normalized node betweenness
+  norm.node.betw.list[[i]] <- betweenness(net.list[[i]], V(net.list[[i]]), directed = FALSE, weights = NULL, nobigint = FALSE, normalized = TRUE)
+  # Calculate edge betweenness
+  edge.betw.list[[i]] <- edge_betweenness(net.list[[i]], E(net.list[[i]]), directed = FALSE, weights = NULL)
+}
+
+# Add betweenness to data frame
+# Loop through list
+for (i in 1 : length(deg.list)) {
+  # Add median non-normalized node betweenness
+  net.stats.df[net.stats.df$Parameter == "Median node betweenness", (i + 1)] <- median(node.betw.list[[i]])
+  # Add mean non-normalized node betweenness
+  net.stats.df[net.stats.df$Parameter == "Mean node betweenness", (i + 1)] <- mean(node.betw.list[[i]])
+  # Add median normalized node betweenness
+  net.stats.df[net.stats.df$Parameter == "Median normalized node betweenness", (i + 1)] <- median(norm.node.betw.list[[i]])
+  # Add mean normalized node betweenness
+  net.stats.df[net.stats.df$Parameter == "Mean normalized node betweenness", (i + 1)] <- mean(norm.node.betw.list[[i]])
+  # Add median edge betweenness
+  net.stats.df[net.stats.df$Parameter == "Median edge betweenness", (i + 1)] <- median(edge.betw.list[[i]])
+  # Add mean edge betweenness
+  net.stats.df[net.stats.df$Parameter == "Mean edge betweenness", (i + 1)] <- mean(edge.betw.list[[i]])
+}
+
+# Calculate closeness
+# Create list for non-normalized closeness
+close.list <- vector("list", 18)
+# Name list elements
+names(close.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+
+# Create list for normalized closeness
+norm.close.list <- vector("list", 18)
+# Name list elements
+names(norm.close.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+
+# Calculate closeness
+# Loop through the lists
+for (i in 1 : length(close.list)) {
+  # Calculate non-normalized closeness
+  close.list[[i]] <- closeness(net.list[[i]], V(net.list[[i]]), mode = "all", weights = NULL, normalized = FALSE)
+  # Calculate normalized closeness
+  norm.close.list[[i]] <- closeness(net.list[[i]], V(net.list[[i]]), mode = "all", weights = NULL, normalized = TRUE)
+}
+
+# Add closeness to data frame
+# Loop through the list
+for (i in 1 : length(net.list)) {
+  # Add median non normalized closeness
+  net.stats.df[net.stats.df$Parameter == "Median closeness", (i + 1)] <- median(close.list[[i]])
+  # Add mean non normalized closeness
+  net.stats.df[net.stats.df$Parameter == "Mean closeness", (i + 1)] <- mean(close.list[[i]])
+  # Add median normalized closeness
+  net.stats.df[net.stats.df$Parameter == "Median normalized closeness", (i + 1)] <- median(norm.close.list[[i]])
+  # Add mean normalized closeness
+  net.stats.df[net.stats.df$Parameter == "Mean normalized closeness", (i + 1)] <- mean(norm.close.list[[i]])
+}
+
+net.stats.trim.df <- net.stats.df[c("Parameter", "Native", "Invasive")]
+
+colnames(net.stats.trim.df) <- c("PARAMETER", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP")
+
+net.stats.trim.df$T1.PERC.CHANGE <- 100 * ((net.stats.trim.df$T1.NDEP - net.stats.trim.df$T1.AMB) / net.stats.trim.df$T1.AMB)
+net.stats.trim.df$T2.PERC.CHANGE <- 100 * ((net.stats.trim.df$T2.NDEP - net.stats.trim.df$T2.AMB) / net.stats.trim.df$T2.AMB)
+
+row.names(net.stats.trim.df) <- net.stats.trim.df$PARAMETER
+
+net.stats.fig.df <- net.stats.trim.df[net.stats.trim.df$PARAMETER == "Total nodes" | 
+                                        net.stats.trim.df$PARAMETER == "Total edges" | 
+                                        net.stats.trim.df$PARAMETER == "Network density" | 
+                                        net.stats.trim.df$PARAMETER == "Clustering coefficient" | 
+                                        net.stats.trim.df$PARAMETER == "Mean degree" | 
+                                        net.stats.trim.df$PARAMETER == "Modularity", c("T1.PERC.CHANGE", "T2.PERC.CHANGE")]
+
+
+net.stats.fig.mat <- t(as.matrix(net.stats.fig.df))
+
+# Save image as a pdf
+pdf("ESA.final.net.stats.figure.pdf", width = 7, height = 6)
+
+# Adjust margin sizes
+par(mar = c(6, 7, 2, 1))
+
+# Adjust bar thickness
+par(lwd = 1)
+
+# Call barplot
+all.net.stats.summary.barplot <- barplot(net.stats.fig.mat, 
+                                         # Remove axes
+                                         axes = FALSE, 
+                                         # Remove axis labels
+                                         axisnames = FALSE, 
+                                         # Fill bars
+                                         col = c("grey90", "grey40"), 
+                                         # Side by side
+                                         beside = TRUE, 
+                                         # Add axis limits
+                                         ylim = c(-30, 150))
+# Add titles
+title(main = "Network descriptive statistics", 
+      font.main = 1, 
+      cex.main = 2, 
+      line = 0.5, 
+      adj = 0.5, 
+      col.main = "black")
+# Add a y axis title
+title(ylab = "Percent change from ambient N",  
+      font.lab = 1, 
+      line = 3.5, 
+      cex.lab = 1.5, 
+      col.lab = "black")
+# Add x axis ticks
+axis(1, at = (all.net.stats.summary.barplot[1, ] + all.net.stats.summary.barplot[2, ]) / 2, 
+     labels = FALSE, 
+     lwd = 0, 
+     lwd.ticks = 1, 
+     col.ticks = "black")
+# Add y axis ticks
+axis(2, at = c(-25, 0, 25, 50, 75, 100, 125), 
+     labels = FALSE, 
+     lwd = 0, 
+     lwd.ticks = 1, 
+     col.ticks = "black")
+# Add x axis labels
+text(x = (all.net.stats.summary.barplot[1, ] + all.net.stats.summary.barplot[2, ]) / 2, 
+     y = -39, 
+     adj = 1, 
+     labels = c("Nodes", "Edges", "Density", "Clustering coeff.", "Modularity", "Mean degree"), 
+     cex = 1.5, 
+     font = 1, 
+     xpd = TRUE, 
+     col = "black", 
+     srt = 30)
+# Add y axis labels
+text(y = c(-25, 0, 25, 50, 75, 100, 125), 
+     x = -0.8, 
+     las = 1, 
+     labels = c("-25", "0", "25", "50", "75", "100", "125"), 
+     cex = 1.2, 
+     font = 1,  
+     xpd = TRUE, 
+     col = "black")
+
+# Add a vertical line at 0
+abline(h = 0, lwd = 1)
+
+# Add box
+box(lwd = 1, 
+    col = "black")
+
+# Add legend
+legend(14, 145, 
+       c("4 months", "12 months"), 
+       pch = c(22, 22), 
+       col = c("black", "black", "white", "black", "black", "black", "black"), 
+       pt.bg = c("grey90", "grey40"), 
+       pt.cex = 2, 
+       pt.lwd = 1, 
+       text.font = 1, 
+       cex = 1.2, 
+       bty = "n")
+
+# Finish the image
+dev.off()
 ```
 
