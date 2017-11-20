@@ -65,15 +65,43 @@ all_inv <- all_inv[ , -1]
 rownames(all_nat) <- all_nat[ ,"B_ Group"]
 all_nat <- all_nat[ , -1]
 
+
+totinvseq <- apply(all_inv, 1, sum)
+totnatseq <- apply(all_nat, 1, sum)
+
+rel_all_inv <- matrix(NA, nrow = nrow(all_inv), ncol = ncol(all_inv))
+rownames(rel_all_inv) <- rownames(all_inv)
+colnames(rel_all_inv) <- colnames(all_inv)
+
+for(h in rownames(all_inv)){
+  for(hh in colnames(all_inv)){
+    rel <- all_inv[h,hh] / totinvseq[h]
+    rel_all_inv[h,hh] <- rel
+  }
+}
+
+rel_all_nat <- matrix(NA, nrow = nrow(all_nat), ncol = ncol(all_nat))
+rownames(rel_all_nat) <- rownames(all_nat)
+colnames(rel_all_nat) <- colnames(all_nat)
+
+for(h in rownames(all_nat)){
+  for(hh in colnames(all_nat)){
+    rel <- all_nat[h,hh] / totnatseq[h]
+    rel_all_nat[h,hh] <- rel
+  }
+}
+
+
+
 #for loop calculating spearman's rho for each
 nat_cors <- matrix(ncol = ncol(all_nat), nrow = ncol(all_nat))
 rownames(nat_cors) <- colnames(all_nat)
 colnames(nat_cors) <- colnames(all_nat)
 
 for(i in colnames(all_nat)){
-  x <- all_nat[ , i]
+  x <- rel_all_nat[ , i]
   for(j in colnames(all_nat)){
-    y <- all_nat[ , j]
+    y <- rel_all_nat[ , j]
     if(i == j){
       rho <- 1
       nat_cors[i,j] <- rho
@@ -89,21 +117,17 @@ rownames(inv_cors) <- colnames(all_inv)
 colnames(inv_cors) <- colnames(all_inv)
 
 for(i in colnames(all_inv)){
-  x <- all_inv[ , i]
+  x <- rel_all_inv[ , i]
   for(j in colnames(all_inv)){
-    y <- all_inv[ , j]
+    y <- rel_all_inv[ , j]
     if(i == j){
       rho <- 1
       inv_cors[i,j] <- rho
     }else{
-      spear <- cor.test(x, y, method = "spearman", continuity = F, conf.level = F, exact = F)
-      rho <- spear$estimate
-      names(rho) <- NULL
-    inv_cors[i,j] <- rho
-    
+      spear <- cor(x, y, method = "spearman")
+      inv_cors[i,j] <- spear
     }
   }
-  cat("row", i, "\n")
 }
 
 ```
@@ -250,7 +274,7 @@ for(d in colnames(all_inv)){
     }
     pvec[g] <- p
   }
-  nonsigs <- names(pvec[pvec > 0.05])
+  nonsigs <- names(pvec[pvec > 0.025])
   good_inv_cors[d, nonsigs] <- 0
   
   if(x %% 10 == 0){
@@ -323,7 +347,7 @@ for(d in colnames(all_nat)){
     }
     pvec[g] <- p
   }
-  nonsigs <- names(pvec[pvec > 0.05])
+  nonsigs <- names(pvec[pvec > 0.025])
   good_nat_cors[d, nonsigs] <- 0
   
   if(x %% 10 == 0){
@@ -340,6 +364,19 @@ cor.good.nat <- cor.good.nat[cor.good.nat$value != 0, ]
 L <- order(cor.good.nat$Var1)
 cor.good.nat <- cor.good.nat[L, ]
 
+
+```
+
+```{r demo fig, echo = F, include = T}
+
+hist(focalmat[ , 1], xlab = "Null correlations (B_OTU1 vs F_OTU90)", main = paste("Not significant"))
+abline(v = mycor[1], col = "red")
+
+hist(focalmat[ , 10], xlab = "Null correlations (B_OTU10 vs F_OTU90)", main = paste("Significant P = 0.006"))
+abline(v = mycor[10], col = "red")
+
+
+p_demo <- sum(focalmat[ , 10] >= mycor[10])/iters
 
 ```
 
@@ -386,7 +423,7 @@ nat_nodes <- data.frame("OTU" = nat_nodes, Taxon, "Family" = family, "Genus" = g
 nat <- graph_from_data_frame(d=cor.good.nat, vertices=nat_nodes, directed=F) 
 colrs <- c(Bacteria = "gold", Fungi = "tomato")
 V(nat)$color <- colrs[V(nat)$Taxon]
-plot(nat, edge.arrow.size = 0.4, vertex.size = 10, vertex.label = NA, layout = layout_nicely(nat))
+plot(nat, edge.arrow.size = 0.4, vertex.size = 5, vertex.label = NA, layout = layout_nicely(nat))
 box()
 
 ceb <- cluster_edge_betweenness(nat) 
@@ -425,12 +462,12 @@ inv_nodes <- data.frame("OTU" = inv_nodes, Taxon, "Family" = family, "Genus" = g
 inv <- graph_from_data_frame(d=cor.good.inv, vertices=inv_nodes, directed=F) 
 colrs <- c(Bacteria = "gold", Fungi = "tomato")
 V(inv)$color <- colrs[V(inv)$Taxon]
-plot(inv, edge.arrow.size = 0.4, vertex.size = 10, vertex.label = NA, layout = layout_nicely(nat))
+plot(inv, edge.arrow.size = 0.4, vertex.size = 5, vertex.label = NA, layout = layout_nicely(nat))
 box()
 
-ceb <- cluster_edge_betweenness(inv) 
-dendPlot(ceb, mode="hclust")
-plot(ceb, inv, edge.arrow.size = 0.4, vertex.size = 5, vertex.label = NA)
+ceb_inv <- cluster_edge_betweenness(inv) 
+dendPlot(ceb_inv, mode="hclust")
+plot(ceb_inv, inv, edge.arrow.size = 0.4, vertex.size = 5, vertex.label = NA)
 ```
 
 ```{r Native positive correlations, echo = F, include = T}
@@ -465,7 +502,7 @@ nat_pos_nodes <- data.frame("OTU" = nat_pos_nodes, Taxon, "Family" = family, "Ge
 nat_pos <- graph_from_data_frame(d=pos.nat, vertices=nat_pos_nodes, directed=F) 
 colrs <- c(Bacteria = "gold", Fungi = "tomato")
 V(nat_pos)$color <- colrs[V(nat_pos)$Taxon]
-plot(nat_pos, edge.arrow.size = 0.4, vertex.size = 10, vertex.label = NA, layout = layout_nicely(nat_pos))
+plot(nat_pos, edge.arrow.size = 0.4, vertex.size = 5, vertex.label = NA, layout = layout_nicely(nat_pos))
 box()
 
 ceb <- cluster_edge_betweenness(nat_pos) 
@@ -508,7 +545,7 @@ nat_neg_nodes <- data.frame("OTU" = nat_neg_nodes, Taxon, "Family" = family, "Ge
 nat_neg <- graph_from_data_frame(d=neg.nat, vertices=nat_neg_nodes, directed=F) 
 colrs <- c(Bacteria = "gold", Fungi = "tomato")
 V(nat_neg)$color <- colrs[V(nat_neg)$Taxon]
-plot(nat_neg, edge.arrow.size = 0.4, vertex.label = NA)
+plot(nat_neg, edge.arrow.size = 0.4, vertex.label = NA, vertex.size = 5)
 box()
 
 ceb_natneg <- cluster_edge_betweenness(nat_neg) 
@@ -549,7 +586,7 @@ inv_pos_nodes <- data.frame("OTU" = inv_pos_nodes, Taxon, "Family" = family, "Ge
 inv_pos <- graph_from_data_frame(d=pos.inv, vertices=inv_pos_nodes, directed=F) 
 colrs <- c(Bacteria = "gold", Fungi = "tomato")
 V(inv_pos)$color <- colrs[V(inv_pos)$Taxon]
-plot(inv_pos, edge.arrow.size = 0.4, vertex.label = NA)
+plot(inv_pos, edge.arrow.size = 0.4, vertex.label = NA, vertex.size = 5)
 box()
 
 ceb.in <- cluster_edge_betweenness(inv_pos) 
@@ -589,7 +626,7 @@ inv_neg_nodes <- data.frame("OTU" = inv_neg_nodes, Taxon, "Family" = family, "Ge
 inv_neg <- graph_from_data_frame(d=neg.inv, vertices=inv_neg_nodes, directed=F) 
 colrs <- c(Bacteria = "gold", Fungi = "tomato")
 V(inv_neg)$color <- colrs[V(inv_neg)$Taxon]
-plot(inv_neg, edge.arrow.size = 0.4, vertex.label = NA)
+plot(inv_neg, edge.arrow.size = 0.4, vertex.label = NA, vertex.size = 5)
 box()
 
 ```
@@ -637,18 +674,7 @@ cor.good.inv <- data.frame("Var1" = cor.good.inv$Var1,"Var2" = cor.good.inv$Var2
 
 cor.good.nat <- data.frame("Var1" = cor.good.nat$Var1,"Var2" = cor.good.nat$Var2,"Relationship" = edge_relate_nat, "value" = cor.good.nat$value)
 
-# Create networks
-# Create a network list
-net.list <- vector("list", 6)
-# Name list elements
-names(net.list) <- c("Nat", "Inv", "BACT.Nat", "BACT.Inv", "FUNGI.Nat", "FUNGI.Inv")
 
-# Create networks
-# Loop through list
-for (i in 1 : length(net.list)) {
-  # Create network
-  net.list[[i]] <- graph_from_data_frame(d = edge.list[[i]], vertices = node.list[[i]], directed = FALSE)
-}
 # Create parameter vector
 parameter.vec <- c("Total nodes", "Bacterial nodes", "Fungal nodes", "Mixed nodes", "Mixed bacterial nodes", "Mixed fungal nodes", "Total edges", "Positive edges", "Negative edges", "Bacterial edges", "Bacterial positive edges", "Bacterial negative edges", "Fungal edges", "Fungal positive edges", "Fungal negative edges", "Mixed edges", "Mixed positive edges", "Mixed negative edges", "Network density", "Network diameter", "Clustering coefficient", "Random clustering coefficient", "Clustering coefficient ratio", "Modularity", "Modules", "Median degree", "Mean degree", "Median normalized degree", "Mean normalized degree", "Median node betweenness", "Mean node betweenness", "Median normalized node betweenness", "Median edge betweenness", "Mean edge betweenness", "Median closeness", "Mean closeness", "Median normalized closeness", "Mean normalized closeness")
 # Create data frame for network statistics
@@ -749,263 +775,71 @@ net.stats.mat["Clustering coefficient ratio", "Invasive"] <- net.stats.mat["Clus
 
 # Takes forever so comment for safety once done...
 # Cluster networks to determine modules
-# Create list to hold communities
-#ceg.list <- vector("list", 8)
-# Name list elements
-#names(ceg.list) <- c("T1", "T2", "T1.BACT", "T2.BACT", "T1.FUNGI", "T2.FUNGI", "T1.MIXED", "T2.MIXED")
-# Create networks
-# Loop through list
-#for (i in 1 : length(ceg.list)) {
-#  # Print progress
-#  cat(paste("Clustering", i, "of", length(ceg.list), "networks", "\n", sep = " "))
-#  # Create network
-#  ceg.list[[i]] <- cluster_edge_betweenness(net.list[[i]], directed = FALSE, merges = TRUE, modularity = TRUE, membership = #TRUE, weights = E(net.list[[i]])$EDGE.WEIGHT, bridges = TRUE)
-#}
+ceb_inv <- cluster_edge_betweenness(inv, directed = F, merges = T, modularity = T, membership = T, weights = E(inv)$EDGE.WEIGHT, bridges = T)
+
+ceb_nat <- cluster_edge_betweenness(nat, directed = F, merges = T, modularity = T, membership = T, weights = E(nat)$EDGE.WEIGHT, bridges = T)
 
 # Cluster networks to determine modules using a different algorithm
-# Create list to hold communities
-cfg.list <- vector("list", 18)
-# Name list elements
-names(cfg.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
-
-# Create networks
-# Loop through list
-for (i in 1 : length(cfg.list)) {
-  # Print progress
-  cat(paste("Clustering", i, "of", length(cfg.list), "networks", "\n", sep = " "))
-  # Create network
-  cfg.list[[i]] <- cluster_fast_greedy(net.list[[i]], merges = TRUE, modularity = TRUE, membership = TRUE, weights = E(net.list[[i]])$EDGE.WEIGHT)
-}
+cfg.nat <- cluster_fast_greedy(nat, merges = TRUE, modularity = TRUE, membership = TRUE, weights = E(nat)$EDGE.WEIGHT)
+cfg.inv <- cluster_fast_greedy(inv, merges = TRUE, modularity = TRUE, membership = TRUE, weights = E(inv)$EDGE.WEIGHT)
 
 # Calculate modularity
 # Loop through list
-for (i in 1 : length(net.list)) {
-  # Add modularity to the data frame
-  net.stats.df[net.stats.df$Parameter == "Modularity", (i + 1)] <- modularity(net.list[[i]], membership = membership(cfg.list[[i]]))
-}
+net.stats.mat["Modularity", "Native"] <- modularity(nat, membership = membership(cfg.nat))
+net.stats.mat["Modularity", "Invasive"] <- modularity(inv, membership = membership(cfg.inv))
+
 
 # Add number of modules to the data frame
-# Loop through the list
-for (i in 1 : length(net.list)) {
-  # Add to data frame
-  net.stats.df[net.stats.df$Parameter == "Modules", (i + 1)] <- length(cfg.list[[i]])
-}
+net.stats.mat["Modules", "Native"] <- length(cfg.nat)
+net.stats.mat["Modules", "Invasive"] <-  length(cfg.inv)
 
 # Calculate degree
-# Create list for non-normalized degree calculations
-deg.list <- vector("list", 18)
-# Name list elements
-names(deg.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
-
-# Create list for normalized degree calculations
-norm.deg.list <- vector("list", 18)
-# Name list elements
-names(norm.deg.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
-
-# Calculate non-normalized degree
-# Loop through the list
-for (i in 1 : length(deg.list)) {
-  # Calculate degree
-  deg.list[[i]] <- degree(net.list[[i]], v = V(net.list[[i]]), normalized = FALSE)
-  # Calculate normalized degree
-  norm.deg.list[[i]] <- degree(net.list[[i]], v = V(net.list[[i]]), normalized = TRUE)
-}
-
 # Add degree to data frame
-# Loop through list
-for (i in 1 : length(deg.list)) {
-  # Add median non-normalized degree
-  net.stats.df[net.stats.df$Parameter == "Median degree", (i + 1)] <- median(deg.list[[i]])
-  # Add mean non-normalized degree
-  net.stats.df[net.stats.df$Parameter == "Mean degree", (i + 1)] <- mean(deg.list[[i]])
-  # Add median normalized degree
-  net.stats.df[net.stats.df$Parameter == "Median normalized degree", (i + 1)] <- median(norm.deg.list[[i]])
-  # Add mean normalized degree
-  net.stats.df[net.stats.df$Parameter == "Mean normalized degree", (i + 1)] <- mean(norm.deg.list[[i]])
-}
+net.stats.mat["Median degree", "Native"] <- median(degree(nat, v = V(nat), normalized = F))
+net.stats.mat["Median degree", "Invasive"] <-  median(degree(inv, v = V(inv), normalized = F))
+
+net.stats.mat["Mean degree", "Native"] <- mean(degree(nat, v = V(nat), normalized = F))
+net.stats.mat["Mean degree", "Invasive"] <-  mean(degree(inv, v = V(inv), normalized = F))
+
+net.stats.mat["Median normalized degree", "Native"] <- median(degree(nat, v = V(nat), normalized = T))
+net.stats.mat["Median normalized degree", "Invasive"] <-  median(degree(inv, v = V(inv), normalized = T))
+
+net.stats.mat["Mean normalized degree", "Native"] <- mean(degree(nat, v = V(nat), normalized = T))
+net.stats.mat["Mean normalized degree", "Invasive"] <-  mean(degree(inv, v = V(inv), normalized = T))
+
 
 # Calculate betweenness
-# Create list for non-normalized node calculations
-node.betw.list <- vector("list", 18)
-# Name list elements
-names(node.betw.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+nat_between <- betweenness(nat, v = V(nat),  directed = FALSE, weights = NULL, nobigint = FALSE, normalized = F)
+inv_between <- betweenness(inv, v = V(inv),  directed = FALSE, weights = NULL, nobigint = FALSE, normalized = F)
+net.stats.mat["Median node betweenness", "Native"] <- median(nat_between)
+net.stats.mat["Median node betweenness", "Invasive"] <- median(inv_between)
 
-# Create list for normalized node calculations
-norm.node.betw.list <- vector("list", 18)
-# Name list elements
-names(norm.node.betw.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+net.stats.mat["Mean node betweenness", "Native"] <- mean(betweenness(nat, v = V(nat),  directed = FALSE, weights = NULL, nobigint = FALSE, normalized = F))
+net.stats.mat["Mean node betweenness", "Invasive"] <- mean(betweenness(inv, v = V(inv),  directed = FALSE, weights = NULL, nobigint = FALSE, normalized = F))
 
-# Create list edge calculations
-edge.betw.list <- vector("list", 18)
-# Name list elements
-names(edge.betw.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
+net.stats.mat["Median normalized node betweenness", "Native"] <- median(betweenness(nat, v = V(nat),  directed = FALSE, weights = NULL, nobigint = FALSE, normalized = T))
+net.stats.mat["Median normalized node betweenness", "Invasive"] <- median(betweenness(inv, v = V(inv),  directed = FALSE, weights = NULL, nobigint = FALSE, normalized = T))
 
-# Calculate non-normalized degree
-# Loop through the list
-for (i in 1 : length(node.betw.list)) {
-  # Calculate node betweenness
-  node.betw.list[[i]] <- betweenness(net.list[[i]], V(net.list[[i]]), directed = FALSE, weights = NULL, nobigint = FALSE, normalized = FALSE)
-  # Calculate normalized node betweenness
-  norm.node.betw.list[[i]] <- betweenness(net.list[[i]], V(net.list[[i]]), directed = FALSE, weights = NULL, nobigint = FALSE, normalized = TRUE)
-  # Calculate edge betweenness
-  edge.betw.list[[i]] <- edge_betweenness(net.list[[i]], E(net.list[[i]]), directed = FALSE, weights = NULL)
-}
+net.stats.mat["Median edge betweenness", "Native"] <- median(edge_betweenness(nat, E(nat),  directed = FALSE, weights = NULL))
+net.stats.mat["Median edge betweenness", "Invasive"] <- median(edge_betweenness(inv, E(inv),  directed = FALSE, weights = NULL))
 
-# Add betweenness to data frame
-# Loop through list
-for (i in 1 : length(deg.list)) {
-  # Add median non-normalized node betweenness
-  net.stats.df[net.stats.df$Parameter == "Median node betweenness", (i + 1)] <- median(node.betw.list[[i]])
-  # Add mean non-normalized node betweenness
-  net.stats.df[net.stats.df$Parameter == "Mean node betweenness", (i + 1)] <- mean(node.betw.list[[i]])
-  # Add median normalized node betweenness
-  net.stats.df[net.stats.df$Parameter == "Median normalized node betweenness", (i + 1)] <- median(norm.node.betw.list[[i]])
-  # Add mean normalized node betweenness
-  net.stats.df[net.stats.df$Parameter == "Mean normalized node betweenness", (i + 1)] <- mean(norm.node.betw.list[[i]])
-  # Add median edge betweenness
-  net.stats.df[net.stats.df$Parameter == "Median edge betweenness", (i + 1)] <- median(edge.betw.list[[i]])
-  # Add mean edge betweenness
-  net.stats.df[net.stats.df$Parameter == "Mean edge betweenness", (i + 1)] <- mean(edge.betw.list[[i]])
-}
+net.stats.mat["Mean edge betweenness", "Native"] <- mean(edge_betweenness(nat, E(nat),  directed = FALSE, weights = NULL))
+net.stats.mat["Mean edge betweenness", "Invasive"] <- mean(edge_betweenness(inv, E(inv),  directed = FALSE, weights = NULL))
 
 # Calculate closeness
-# Create list for non-normalized closeness
-close.list <- vector("list", 18)
-# Name list elements
-names(close.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
-
-# Create list for normalized closeness
-norm.close.list <- vector("list", 18)
-# Name list elements
-names(norm.close.list) <- c("T1", "T2", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP", "BACT.T1", "BACT.T2", "BACT.T1.AMB", "BACT.T1.NDEP", "BACT.T2.AMB", "BACT.T2.NDEP", "FUNGI.T1", "FUNGI.T2", "FUNGI.T1.AMB", "FUNGI.T1.NDEP", "FUNGI.T2.AMB", "FUNGI.T2.NDEP")
-
-# Calculate closeness
-# Loop through the lists
-for (i in 1 : length(close.list)) {
-  # Calculate non-normalized closeness
-  close.list[[i]] <- closeness(net.list[[i]], V(net.list[[i]]), mode = "all", weights = NULL, normalized = FALSE)
-  # Calculate normalized closeness
-  norm.close.list[[i]] <- closeness(net.list[[i]], V(net.list[[i]]), mode = "all", weights = NULL, normalized = TRUE)
-}
-
 # Add closeness to data frame
-# Loop through the list
-for (i in 1 : length(net.list)) {
-  # Add median non normalized closeness
-  net.stats.df[net.stats.df$Parameter == "Median closeness", (i + 1)] <- median(close.list[[i]])
-  # Add mean non normalized closeness
-  net.stats.df[net.stats.df$Parameter == "Mean closeness", (i + 1)] <- mean(close.list[[i]])
-  # Add median normalized closeness
-  net.stats.df[net.stats.df$Parameter == "Median normalized closeness", (i + 1)] <- median(norm.close.list[[i]])
-  # Add mean normalized closeness
-  net.stats.df[net.stats.df$Parameter == "Mean normalized closeness", (i + 1)] <- mean(norm.close.list[[i]])
-}
+net.stats.mat["Median closeness", "Native"] <- median(closeness(nat, V(nat),  mode = "all", weights = NULL, normalized = F))
+net.stats.mat["Median closeness", "Invasive"] <- median(closeness(inv, V(inv),  mode = "all", weights = NULL, normalized = F))
 
-net.stats.trim.df <- net.stats.df[c("Parameter", "Native", "Invasive")]
+net.stats.mat["Mean closeness", "Native"] <- mean(closeness(nat, V(nat),  mode = "all", weights = NULL, normalized = F))
+net.stats.mat["Mean closeness", "Invasive"] <- mean(closeness(inv, V(inv),  mode = "all", weights = NULL, normalized = F))
 
-colnames(net.stats.trim.df) <- c("PARAMETER", "T1.AMB", "T1.NDEP", "T2.AMB", "T2.NDEP")
+net.stats.mat["Median normalized closeness", "Native"] <- median(closeness(nat, V(nat),  mode = "all", weights = NULL, normalized = T))
+net.stats.mat["Median normalized closeness", "Invasive"] <- median(closeness(inv, V(inv),  mode = "all", weights = NULL, normalized = T))
 
-net.stats.trim.df$T1.PERC.CHANGE <- 100 * ((net.stats.trim.df$T1.NDEP - net.stats.trim.df$T1.AMB) / net.stats.trim.df$T1.AMB)
-net.stats.trim.df$T2.PERC.CHANGE <- 100 * ((net.stats.trim.df$T2.NDEP - net.stats.trim.df$T2.AMB) / net.stats.trim.df$T2.AMB)
+net.stats.mat["Mean normalized closeness", "Native"] <- mean(closeness(nat, V(nat),  mode = "all", weights = NULL, normalized = T))
+net.stats.mat["Mean normalized closeness", "Invasive"] <- mean(closeness(inv, V(inv),  mode = "all", weights = NULL, normalized = T))
 
-row.names(net.stats.trim.df) <- net.stats.trim.df$PARAMETER
-
-net.stats.fig.df <- net.stats.trim.df[net.stats.trim.df$PARAMETER == "Total nodes" | 
-                                        net.stats.trim.df$PARAMETER == "Total edges" | 
-                                        net.stats.trim.df$PARAMETER == "Network density" | 
-                                        net.stats.trim.df$PARAMETER == "Clustering coefficient" | 
-                                        net.stats.trim.df$PARAMETER == "Mean degree" | 
-                                        net.stats.trim.df$PARAMETER == "Modularity", c("T1.PERC.CHANGE", "T2.PERC.CHANGE")]
-
-
-net.stats.fig.mat <- t(as.matrix(net.stats.fig.df))
-
-# Save image as a pdf
-pdf("ESA.final.net.stats.figure.pdf", width = 7, height = 6)
-
-# Adjust margin sizes
-par(mar = c(6, 7, 2, 1))
-
-# Adjust bar thickness
-par(lwd = 1)
-
-# Call barplot
-all.net.stats.summary.barplot <- barplot(net.stats.fig.mat, 
-                                         # Remove axes
-                                         axes = FALSE, 
-                                         # Remove axis labels
-                                         axisnames = FALSE, 
-                                         # Fill bars
-                                         col = c("grey90", "grey40"), 
-                                         # Side by side
-                                         beside = TRUE, 
-                                         # Add axis limits
-                                         ylim = c(-30, 150))
-# Add titles
-title(main = "Network descriptive statistics", 
-      font.main = 1, 
-      cex.main = 2, 
-      line = 0.5, 
-      adj = 0.5, 
-      col.main = "black")
-# Add a y axis title
-title(ylab = "Percent change from ambient N",  
-      font.lab = 1, 
-      line = 3.5, 
-      cex.lab = 1.5, 
-      col.lab = "black")
-# Add x axis ticks
-axis(1, at = (all.net.stats.summary.barplot[1, ] + all.net.stats.summary.barplot[2, ]) / 2, 
-     labels = FALSE, 
-     lwd = 0, 
-     lwd.ticks = 1, 
-     col.ticks = "black")
-# Add y axis ticks
-axis(2, at = c(-25, 0, 25, 50, 75, 100, 125), 
-     labels = FALSE, 
-     lwd = 0, 
-     lwd.ticks = 1, 
-     col.ticks = "black")
-# Add x axis labels
-text(x = (all.net.stats.summary.barplot[1, ] + all.net.stats.summary.barplot[2, ]) / 2, 
-     y = -39, 
-     adj = 1, 
-     labels = c("Nodes", "Edges", "Density", "Clustering coeff.", "Modularity", "Mean degree"), 
-     cex = 1.5, 
-     font = 1, 
-     xpd = TRUE, 
-     col = "black", 
-     srt = 30)
-# Add y axis labels
-text(y = c(-25, 0, 25, 50, 75, 100, 125), 
-     x = -0.8, 
-     las = 1, 
-     labels = c("-25", "0", "25", "50", "75", "100", "125"), 
-     cex = 1.2, 
-     font = 1,  
-     xpd = TRUE, 
-     col = "black")
-
-# Add a vertical line at 0
-abline(h = 0, lwd = 1)
-
-# Add box
-box(lwd = 1, 
-    col = "black")
-
-# Add legend
-legend(14, 145, 
-       c("4 months", "12 months"), 
-       pch = c(22, 22), 
-       col = c("black", "black", "white", "black", "black", "black", "black"), 
-       pt.bg = c("grey90", "grey40"), 
-       pt.cex = 2, 
-       pt.lwd = 1, 
-       text.font = 1, 
-       cex = 1.2, 
-       bty = "n")
-
-# Finish the image
-dev.off()
 ```
 
+```{r significance of discriptive stats}
