@@ -52,6 +52,8 @@ for(i in sample_id){
        )
 }
 abline(v=459)
+abline(v=168)
+
 ```
 
 ##Alpha Diversity 
@@ -71,11 +73,15 @@ The following shows shannon diversity by lineage
 ```{r alpha plots1, echo = F, include = T}
 clrs <- c(Nat = "white", Inv = "gray")
 
-boxplot(npshannon ~ Lineage, data = meta_alpha,
-        ylab = "Shannon Diversity Index",
-        ylim = c(0,5.5), col = clrs[levels(meta_alpha$Lineage)],
+boxplot(sobs ~ Lineage, data = meta_alpha,
+        ylab = "Species Observed",
+        ylim = c(0,35), col = clrs[levels(meta_alpha$Lineage)],
         names = unique(meta_alpha$Lineage),
         range = 0)
+
+mean(meta_alpha$sobs[meta_alpha$Lineage=="Inv"])
+mean(meta_alpha$sobs[meta_alpha$Lineage=="Nat"])
+
 
 ```
 ```{r alpha plots2, echo = F, include = T}
@@ -86,6 +92,9 @@ boxplot(chao ~ Lineage, data = meta_alpha,
         ylim = c(0,60), col = clrs[levels(meta_alpha$Lineage)],
         names = unique(meta_alpha$Lineage),
         range = 0)
+mean(meta_alpha$chao[meta_alpha$Lineage=="Inv"])
+mean(meta_alpha$chao[meta_alpha$Lineage=="Nat"])
+
 
 ```
 
@@ -119,9 +128,140 @@ legend("bottomright", c("Non-native", "Native" ), pch = 22, col = "black", pt.bg
 
 ```
 
-```{r ANOVA shannon, echo = F, include = T}
-t_sobs <- t.test(sobs ~ Lineage, data = meta_alpha)
-t_sobs
+```{r ANOVA sobs, echo = F, include = T}
+an_sobs <- aov(sobs ~ Site*Lineage, data = meta_alpha)
+summary(an_sobs)
+```
+
+```{r nat vs non sobs, echo=F, include=T}
+nt_sobs_mat <- matrix(NA, nrow = 7, ncol = 4)
+rownames(nt_sobs_mat) <- unique(meta_alpha$Site)
+colnames(nt_sobs_mat) <- c("Invasive", "Inv_sterr", "Native", "Nat_sterr")
+
+for(ii in rownames(nt_sobs_mat)){
+  sub <- meta_alpha[meta_alpha$Site == ii & meta_alpha$Lineage == "Inv", ]
+  num <- nrow(sub)
+  site <- rep(NA, num)
+  if(num > 1){
+    for(pp in 1:num){
+      site[pp] <- sub$sobs[pp]
+    }
+  }else{
+    site <- sub$sobs
+  }
+  nt_sobs_mat[ii, 1] <- mean(site)
+  nt_sobs_mat[ii, 2] <- (sd(site))/(sqrt(num))
+  sub <- meta_alpha[meta_alpha$Site == ii & meta_alpha$Lineage == "Nat", ]
+  num <- nrow(sub)
+  site <- rep(NA, num)
+  if(num > 1){
+    for(pp in 1:num){
+      site[pp] <- sub$sobs[pp]
+    }
+  }else{
+    site <- sub$sobs
+  }
+  nt_sobs_mat[ii, 3] <- mean(site)
+  nt_sobs_mat[ii, 4] <- (sd(site))/(sqrt(num))
+}
+nt_by_site <- as.data.frame(nt_sobs_mat)
+
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "orange", Rt2 = "gray")
+
+
+quartz.options(height=6 , width = 6)
+plot.new()
+par(oma = c(1, 1, 1, 1))
+par(mar = c(3, 3, 0.5, 9))
+plot.window(xlim = c(0,40), ylim = c(0, 40))
+axis(1)
+axis(2)
+
+
+arrows(x0 = nt_by_site$Native, x1 = nt_by_site$Native + nt_by_site$Nat_sterr, y0 = nt_by_site$Invasive, angle = 0)
+arrows(x0 = nt_by_site$Native, x1 = nt_by_site$Native - nt_by_site$Nat_sterr, y0 = nt_by_site$Invasive, angle = 0)
+arrows(x0 = nt_by_site$Native, y0 = nt_by_site$Invasive, y1 = nt_by_site$Invasive + nt_by_site$Inv_sterr, angle = 0)
+arrows(x0 = nt_by_site$Native, y0 = nt_by_site$Invasive, y1 = nt_by_site$Invasive - nt_by_site$Inv_sterr, angle = 0)
+points(x = nt_by_site$Native, y = nt_by_site$Invasive, pch = 16, col = clrs[rownames(nt_by_site)], cex = 1.5)
+box()
+lines(x = c(0,10,45), y = c(0,10,45), type = "l")
+mtext(side = 1, line = 3, text = "Species Observed on Native")
+mtext(side = 2, line = 3, text = "Species Observed on Non-Native")
+#text(x = nt_by_site$Native, y = nt_by_site$Invasive, labels = rownames(nt_by_site), adj = c(0,0), cex = 0.7)
+
+legend_text <- c("Bullard Lake", "Cecil Bay", "Chelsea", "Cheboygan Marsh", "Castle Rock", "Point LeBarb", "Route 2")
+legend(42,42, legend_text, pch = 16, 
+       col = c("blue","red","dark green","coral","black","orange","gray"), xpd = T)
+
+
+```
+
+```{r ANOVA chao, echo = F, include = T}
+an_chao <- aov(chao ~ Site*Lineage, data = meta_alpha)
+summary(an_chao)
+```
+
+```{r nat vs non chao, echo=F, include=T}
+nt_chao_mat <- matrix(NA, nrow = 7, ncol = 4)
+rownames(nt_chao_mat) <- unique(meta_alpha$Site)
+colnames(nt_chao_mat) <- c("Invasive", "Inv_sterr", "Native", "Nat_sterr")
+
+for(ii in rownames(nt_chao_mat)){
+  sub <- meta_alpha[meta_alpha$Site == ii & meta_alpha$Lineage == "Inv", ]
+  num <- nrow(sub)
+  site <- rep(NA, num)
+  if(num > 1){
+    for(pp in 1:num){
+      site[pp] <- sub$chao[pp]
+    }
+  }else{
+    site <- sub$chao
+  }
+  nt_chao_mat[ii, 1] <- mean(site)
+  nt_chao_mat[ii, 2] <- (sd(site))/(sqrt(num))
+  sub <- meta_alpha[meta_alpha$Site == ii & meta_alpha$Lineage == "Nat", ]
+  num <- nrow(sub)
+  site <- rep(NA, num)
+  if(num > 1){
+    for(pp in 1:num){
+      site[pp] <- sub$chao[pp]
+    }
+  }else{
+    site <- sub$chao
+  }
+  nt_chao_mat[ii, 3] <- mean(site)
+  nt_chao_mat[ii, 4] <- (sd(site))/(sqrt(num))
+}
+nt_by_site <- as.data.frame(nt_chao_mat)
+
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "orange", Rt2 = "gray")
+
+
+quartz.options(height=6 , width = 6)
+plot.new()
+par(oma = c(1, 1, 1, 1))
+par(mar = c(3, 3, 0.5, 9))
+plot.window(xlim = c(0,55), ylim = c(0,55))
+axis(1)
+axis(2)
+
+
+arrows(x0 = nt_by_site$Native, x1 = nt_by_site$Native + nt_by_site$Nat_sterr, y0 = nt_by_site$Invasive, angle = 0)
+arrows(x0 = nt_by_site$Native, x1 = nt_by_site$Native - nt_by_site$Nat_sterr, y0 = nt_by_site$Invasive, angle = 0)
+arrows(x0 = nt_by_site$Native, y0 = nt_by_site$Invasive, y1 = nt_by_site$Invasive + nt_by_site$Inv_sterr, angle = 0)
+arrows(x0 = nt_by_site$Native, y0 = nt_by_site$Invasive, y1 = nt_by_site$Invasive - nt_by_site$Inv_sterr, angle = 0)
+points(x = nt_by_site$Native, y = nt_by_site$Invasive, pch = 16, col = clrs[rownames(nt_by_site)], cex = 1.5)
+box()
+lines(x = c(0,30,60), y = c(0,30,60), type = "l")
+mtext(side = 1, line = 3, text = "Chao Richness Native")
+mtext(side = 2, line = 3, text = "Chao Richness Non-Native")
+#text(x = nt_by_site$Native, y = nt_by_site$Invasive, labels = rownames(nt_by_site), adj = c(0,0), cex = 0.7)
+
+legend_text <- c("Bullard Lake", "Cecil Bay", "Chelsea", "Cheboygan Marsh", "Castle Rock", "Point LeBarb", "Route 2")
+legend(57,57, legend_text, pch = 16, 
+       col = c("blue","red","dark green","coral","black","orange","gray"), xpd = T)
+
+
 ```
 
 ##Community Analysis
@@ -138,6 +278,26 @@ shared <- shared[ ,-c(1,2)]
 
 permoom <- adonis(shared ~ Site * Lineage, data=meta_alpha, method = "bray")
 permoom
+
+dist <- vegdist(shared, method = "bray")
+disp <- betadisper(dist, meta_alpha$Lineage, type = "centroid")
+disp
+anova(disp)
+permutest(disp, pairwise = TRUE, permutations = 99)
+(disp.HSD <- TukeyHSD(disp))
+plot(disp.HSD)
+
+plot(disp)
+plot(disp, ellipse = TRUE, hull = FALSE) # 1 sd data ellipse
+plot(disp, ellipse = TRUE, hull = FALSE, conf = 0.90) # 90% data ellipse
+plot(disp, axes = c(3,1), seg.col = "forestgreen", seg.lty = "dashed")
+boxplot(disp)
+
+scrs <- scores(disp)
+str(scrs)
+head(scores(disp, 1:4, display = "sites"))
+scores(disp, 1:4, display = "centroids")
+eigenvals(disp) 
 
 ```
 
