@@ -109,9 +109,45 @@ legend("bottomright", c("Non-native", "Native" ), pch = 22, col = "black", pt.bg
 ```
 
 ```{r ANOVA shannon, echo = F, include = T}
-t_shannon <- t.test(npshannon ~ Lineage, data = meta_alpha)
-t_shannon
+shanmed <- tapply(meta_alpha$npshannon, meta_alpha$Lineage, median)
+w <- meta_alpha$npshannon - shanmed[meta_alpha$Lineage]
+plot(w ~ Lineage, data = meta_alpha)
+#variances equal
+qqnorm(meta_alpha$npshannon[meta_alpha$Lineage == "Nat"], datax = T)
+qqline(meta_alpha$npshannon[meta_alpha$Lineage == "Nat"], datax = T)
+
+qreference(meta_alpha$npshannon[meta_alpha$Lineage == "Nat"], nrep = 8)
+
+qqnorm(meta_alpha$npshannon[meta_alpha$Lineage == "Inv"], datax = T)
+qqline(meta_alpha$npshannon[meta_alpha$Lineage == "Inv"], datax = T)
+
+qreference(meta_alpha$npshannon[meta_alpha$Lineage == "Inv"], nrep = 8)
+
+#Now for Sites
+shanmed <- tapply(meta_alpha$npshannon, meta_alpha$Site, median)
+w <- meta_alpha$npshannon - shanmed[meta_alpha$Site]
+plot(w ~ Site, data = meta_alpha)
+#variances equal
+qqnorm(meta_alpha$npshannon[meta_alpha$Site == "BL"], datax = T)
+qqline(meta_alpha$npshannon[meta_alpha$Site == "BL"], datax = T)
+
+qreference(meta_alpha$npshannon[meta_alpha$Site == "BL"], nrep = 8)
+
+qqnorm(meta_alpha$npshannon[meta_alpha$Site == "CH"], datax = T)
+qqline(meta_alpha$npshannon[meta_alpha$Site == "CH"], datax = T)
+
+qreference(meta_alpha$npshannon[meta_alpha$Site == "CH"], nrep = 8)
+an_shannon <- aov(npshannon ~ Lineage * Site, data = meta_alpha)
+summary(an_shannon)
+
+
 ```
+
+Normality tests show that variances are equal. Native samples tended towards non-narmality, but not significantly. Invasive samples fit a normal distribution quite well.
+
+By site, variances are equal, but normal distributions dont fit well. Since anova is faily robust against non-normality, it is still used. 
+
+Anova was not significant by Lineage, but was by site. There is also a significant interaction between site and lineage. See boxplot in previous chunk
 
 ##Community Analysis
 ###PerManova
@@ -200,11 +236,27 @@ simp
 ```
 
 
+
+
+```{r, PCoA, echo = F, include = T}
+pcoa <- read.table(file="data/Bickford.braycurtis.pcoa.axes", header=T)
+
+site_color <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "brown", Rt2 = "dark gray", SB = "purple")
+
+plot(x=pcoa$axis1, y=pcoa$axis2, xlab="PCo Axis 1", ylab="PCo Axis 2",
+            xlim=c(-0.40, 0.4), ylim=c(-0.4, 0.4), pch=21, col="black", bg=site_color[as.character(meta_alpha$Site)], lwd=1, cex=(pcoa$axis3+1),
+            main="PCoA of BrayCurtis Distances Between Root Samples")
+
+plot(x=pcoa$axis1, y=pcoa$axis3, xlab="PCo Axis 1", ylab="PCo Axis 3",
+            xlim=c(-0.40, 0.4), ylim=c(-0.4, 0.4), pch=21, col="black", bg=site_color[as.character(meta_alpha$Site)], lwd=1, cex=(pcoa$axis2+1),
+            main="PCoA of BrayCurtis Distances Between Root Samples")
+```
 ###Remove rare taxa
 
 I removed rare taxa using relative abundance data. Any OTU that made up less than 0.1% of the total sequences was removed. This is more stringent than removing singletons, but ensures that rare taxa are not responsible for site effects. The following are results of a permanova of only abundant taxa by site and lineage. 
-
 ```{r, Permanova abundant, echo = F, include = T}
+library(ape)
+
 shared <- read.table(file="data/Bickford.subsample.shared", header=T, stringsAsFactors=F, row.names=2)
 shared <- shared[,-c(1,2)]
 
@@ -220,6 +272,11 @@ abundant <- mean_rel_abund > 0.001
 rel_abund_subset <- rel_abund[, abundant]
 shared_abundant <- shared[ , abundant]
 
+ab_dist <- vegdist(shared_abundant, method = "bray")
+pcoa_ab <- pcoa(ab_dist)
+plot(pcoa_ab, xlab="PCo Axis 1", ylab="PCo Axis 2",
+            xlim=c(-0.40, 0.4), ylim=c(-0.4, 0.4), pch=21, col="black", bg=site_color[as.character(meta_alpha$Site)], lwd=1, cex=(pcoa$axis3+1),
+            main="PCoA of BrayCurtis Distances Between Root Samples")
 permabundant <- adonis(shared_abundant ~ Site * Lineage + Sat_lev, data = meta_alpha)
 permabundant
 ```
@@ -1227,6 +1284,8 @@ box()
 
 
 ```
+
+
 ##Function
 #From Picrust
 
