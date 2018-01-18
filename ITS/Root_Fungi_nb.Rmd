@@ -15,7 +15,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
-library(permute); library(vegan); library("dplyr"); library(knitr)
+library(permute); library(vegan); library("dplyr"); library(knitr); library(ape); library(DAAG)
 
 ```
 #Root Fungi Analysis
@@ -36,10 +36,41 @@ meta_alpha <- inner_join(metadata, alpha_mean, by = c("Code"="group"))
 ##Hyphal Colonization
 
 ```{r percol15 anova, echo = F, include = T}
-percol15 <- read.csv("~/git_repos/Root_ms/root_col_15.csv", stringsAsFactors = F)
+percol15 <- read.csv("~/git_repos/Root_paper/microscopy/root_col_15.csv", stringsAsFactors = F)
+
+percolmed <- tapply(percol15$per_col, percol15$Lineage, median)
+w <- percol15$per_col - percolmed[percol15$Lineage]
+boxplot(w ~ Lineage, data = percol15)
+#variances equal
+qqnorm(percol15$per_col[percol15$Lineage == "Nat"], datax = T)
+qqline(percol15$per_col[percol15$Lineage == "Nat"], datax = T)
+
+qreference(percol15$per_col[percol15$Lineage == "Nat"], nrep = 8)
+
+qqnorm(percol15$per_col[percol15$Lineage == "Inv"], datax = T)
+qqline(percol15$per_col[percol15$Lineage == "Inv"], datax = T)
+
+qreference(percol15$per_col[percol15$Lineage == "Inv"], nrep = 8)
+
+#Now for Sites
+percolmed <- tapply(percol15$per_col, percol15$Site, median)
+w <- percol15$per_col - percolmed[percol15$Site]
+boxplot(w ~ Site, data = percol15)
+#variances equal
+qqnorm(percol15$per_col[percol15$Site == "BL"], datax = T)
+qqline(percol15$per_col[percol15$Site == "BL"], datax = T)
+
+qreference(percol15$per_col[percol15$Site == "BL"], nrep = 8)
+
+qqnorm(percol15$per_col[percol15$Site == "CH"], datax = T)
+qqline(percol15$per_col[percol15$Site == "CH"], datax = T)
+
+qreference(percol15$per_col[percol15$Site == "CH"], nrep = 8)
+
 percol_nova_nt <- aov(percol15$per_col ~ percol15$Site * percol15$Lineage)
 summary(percol_nova_nt)
 ```
+Although not all factors seem normally distributed, the variances are equal, so I am comfortable using ANOVA for hypothesis testing
 
 ```{r nat vs non percol, echo=F, include=T}
 nt_percol_mat <- matrix(NA, nrow = 8, ncol = 4)
@@ -142,6 +173,25 @@ Sites differed wrt to Soil N but not markedly
 
 ```{r plot of nitrogen by site, echo = F, include = T}
 
+Nmed <- tapply(meta_finite$SoilN, meta_finite$Lineage, median)
+w <- meta_finite$SoilN - Nmed[meta_finite$Lineage]
+boxplot(w ~ Lineage, data = meta_finite)
+#variances equal
+qqnorm(meta_finite$SoilN[meta_finite$Lineage == "Nat"], datax = T)
+qqline(meta_finite$SoilN[meta_finite$Lineage == "Nat"], datax = T)
+
+qreference(meta_finite$SoilN[meta_finite$Lineage == "Nat"], nrep = 8)
+
+qqnorm(meta_finite$SoilN[meta_finite$Lineage == "Inv"], datax = T)
+qqline(meta_finite$SoilN[meta_finite$Lineage == "Inv"], datax = T)
+
+qreference(meta_finite$SoilN[meta_finite$Lineage == "Inv"], nrep = 8)
+
+#Now for Sites
+Nmed <- tapply(meta_finite$SoilN, meta_finite$Site, median)
+w <- meta_finite$SoilN - Nmed[meta_finite$Site]
+boxplot(w ~ Site, data = meta_finite)
+
 boxplot(SoilN ~ Site, data = meta_finite, ylab = "Percent Soil N", ylim = c(0,4), xlab = NULL, axes = F, range = 0)
 # 
 mtext(side=1, at=c(1,2,3,4,5,6,7,8), line=1, text = c("BL", "CB", "CH", "CM", "CR", "PLB", "Rt2", "SB"), cex = 1, font = 1)
@@ -181,6 +231,24 @@ abline(v = c(2.5,4.5,6.5,8.5,10.5,12.5,14.5), col = "light gray")
 ```
 
 ```{r plot of p, echo = F, include = T}
+Pmed <- tapply(meta_finite$SoilP, meta_finite$Lineage, median)
+w <- meta_finite$SoilP - Pmed[meta_finite$Lineage]
+boxplot(w ~ Lineage, data = meta_finite)
+#variances equal
+qqnorm(meta_finite$SoilP[meta_finite$Lineage == "Nat"], datax = T)
+qqline(meta_finite$SoilP[meta_finite$Lineage == "Nat"], datax = T)
+
+qreference(meta_finite$SoilP[meta_finite$Lineage == "Nat"], nrep = 8)
+
+qqnorm(meta_finite$SoilP[meta_finite$Lineage == "Inv"], datax = T)
+qqline(meta_finite$SoilP[meta_finite$Lineage == "Inv"], datax = T)
+
+qreference(meta_finite$SoilP[meta_finite$Lineage == "Inv"], nrep = 8)
+
+#Now for Sites
+Pmed <- tapply(meta_finite$SoilP, meta_finite$Site, median)
+w <- meta_finite$SoilP - Pmed[meta_finite$Site]
+boxplot(w ~ Site, data = meta_finite)
 
 # 
 boxplot(SoilP ~ Site, data = meta_finite, ylab = "Available Soil P [mg/kg]", ylim = c(0,20), xlab = NULL, axes = F, range = 0)
@@ -219,6 +287,24 @@ abline(v = c(2.5,4.5,6.5,8.5,10.5,12.5,14.5), col = "light gray")
 
 
 ```{r boxplot Tis N by site, echo = F, include = T}
+Nmed <- tapply(meta_finite$TisN, meta_finite$Lineage, median)
+w <- meta_finite$TisN - Nmed[meta_finite$Lineage]
+boxplot(w ~ Lineage, data = meta_finite)
+#variances equal
+qqnorm(meta_finite$TisN[meta_finite$Lineage == "Nat"], datax = T)
+qqline(meta_finite$TisN[meta_finite$Lineage == "Nat"], datax = T)
+
+qreference(meta_finite$TisN[meta_finite$Lineage == "Nat"], nrep = 8)
+
+qqnorm(meta_finite$TisN[meta_finite$Lineage == "Inv"], datax = T)
+qqline(meta_finite$TisN[meta_finite$Lineage == "Inv"], datax = T)
+
+qreference(meta_finite$TisN[meta_finite$Lineage == "Inv"], nrep = 8)
+
+#Now for Sites
+Nmed <- tapply(meta_finite$TisN, meta_finite$Site, median)
+w <- meta_finite$TisN - Nmed[meta_finite$Site]
+boxplot(w ~ Site, data = meta_finite)
 
 # 
 boxplot(TisN ~ Site, data = meta_finite, ylab = "Percent Tissue N", ylim = c(0,5), xlab = NULL, axes = F, range = 0)
@@ -227,7 +313,9 @@ mtext(side=1, at=c(1,2,3,4,5,6,7,8), line=1, text = c("BL", "CB", "CH", "CM", "C
 # 
 axis(1, at = c(1,2,3,4,5,6,7,8), labels = F)
 axis(2, labels = T)
-# 
+#
+boxplot(TisN ~ Lineage, data = meta_finite, ylab = "Percent Tissue N")
+#
 an_TisN <- aov(TisN ~ Site + Lineage, data = meta_finite)
 summary(an_TisN)
 ```
@@ -364,8 +452,11 @@ mtext(side=1, at=c(1,2,3), line=0.5, text = c("Standing Water", "Saturated", "Un
 kw_col <- kruskal.test(meta_col$per_col ~ meta_col$Sat_lev)
 kw_col
 
+an_sat <- aov(per_col ~ Lineage.x*Sat_lev, data = meta_col)
+summary(an_sat)
+
 ```
-Kruskal-Wallace test confirms that colonization in North and South are significantly different from one another (P = `r kw_col$p.value`)
+Kruskal-Wallace test confirms that colonization in saturated vs unsaturated sites are significantly different from one another (P = `r kw_col$p.value`)
 
 This makes a lot of sense since most fungi are aerobic
 
@@ -405,7 +496,7 @@ boxplot(per_col ~ Lat, data = meta_col,
 mtext(side=1, at=c(1,2), line=0.5, text = c("North", "South"), cex = 1, font = 2)
 
 kw_col <- kruskal.test(meta_col$per_col ~ meta_col$Lat)
-
+kw_col
 
 ```
 Kruskal-Wallace test confirms that colonization in North and South are significantly different from one another (P = `r kw_col$p.value`)
@@ -496,7 +587,7 @@ The following is a PerMANOVA of phyloytpes by site and Lineage
 shared <- read.table(file= "data/Bickford.subsample.shared", header = T, stringsAsFactors = F, row.names = 2)
 shared <- shared[ ,-c(1,2)]
 
-permfungi <- adonis(shared ~ Site * Lineage, data=meta_alpha, method = "bray")
+permfungi <- adonis(shared ~ Lineage * Site, data=meta_alpha, method = "bray")
 permfungi
 
 ```
