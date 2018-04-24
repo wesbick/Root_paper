@@ -3,19 +3,19 @@ title: "Root Fungi Analysis"
 author: "Wes Bickford"
 date: "4/26/2017"
 output:
+  html_document:
+    toc: yes
+    toc_depth: '4'
   html_notebook:
     self_contained: yes
     toc: yes
     toc_depth: 4
     toc_float: yes
-  html_document:
-    toc: yes
-    toc_depth: '4'
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F)
-library(permute); library(vegan); library("dplyr"); library(knitr); library(ape); library(DAAG); library(MASS)
+library(permute); library(vegan); library(dplyr); library(knitr); library(ape); library(DAAG); library(MASS); library(car);
 
 ```
 #Root Fungi Analysis
@@ -31,6 +31,8 @@ alpha_mean <- alpha[alpha$method == "ave", ]
 alpha_mean$group <- as.character(alpha_mean$group)
 
 meta_alpha <- inner_join(metadata, alpha_mean, by = c("Code"="group"))
+
+
 
 ```
 ##Hyphal Colonization
@@ -66,6 +68,8 @@ qqnorm(percol15$per_col[percol15$Site == "CH"], datax = T)
 qqline(percol15$per_col[percol15$Site == "CH"], datax = T)
 
 qreference(percol15$per_col[percol15$Site == "CH"], nrep = 8)
+
+
 
 percol_nova_nt <- aov(percol15$per_col ~ percol15$Site * percol15$Lineage)
 summary(percol_nova_nt)
@@ -117,10 +121,10 @@ axis(1)
 axis(2)
 
 
-arrows(x0 = nt_by_site$Native, x1 = nt_by_site$Native + nt_by_site$Nat_sterr, y0 = nt_by_site$Invasive, angle = 0)
-arrows(x0 = nt_by_site$Native, x1 = nt_by_site$Native - nt_by_site$Nat_sterr, y0 = nt_by_site$Invasive, angle = 0)
-arrows(x0 = nt_by_site$Native, y0 = nt_by_site$Invasive, y1 = nt_by_site$Invasive + nt_by_site$Inv_sterr, angle = 0)
-arrows(x0 = nt_by_site$Native, y0 = nt_by_site$Invasive, y1 = nt_by_site$Invasive - nt_by_site$Inv_sterr, angle = 0)
+arrows(x0 = nt_by_site$Native, x1 = nt_by_site$Native + nt_by_site$Nat_sterr, y0 = nt_by_site$Invasive, angle = 90, length = 0.03)
+arrows(x0 = nt_by_site$Native, x1 = nt_by_site$Native - nt_by_site$Nat_sterr, y0 = nt_by_site$Invasive, angle = 90, length = 0.03)
+arrows(x0 = nt_by_site$Native, y0 = nt_by_site$Invasive, y1 = nt_by_site$Invasive + nt_by_site$Inv_sterr, angle = 90, length = 0.03)
+arrows(x0 = nt_by_site$Native, y0 = nt_by_site$Invasive, y1 = nt_by_site$Invasive - nt_by_site$Inv_sterr, angle = 90, length = 0.03)
 points(x = nt_by_site$Native, y = nt_by_site$Invasive, pch = 16, col = clrs[rownames(nt_by_site)], cex = 1.5)
 box()
 lines(x = c(0,0.5,1), y = c(0,0.5,1), type = "l")
@@ -134,6 +138,7 @@ legend(0.416,0.416, legend_text, pch = 16,
 
 
 ```
+
 ## Nutrients
 ### Soil Nutrients
 
@@ -142,11 +147,14 @@ metadata$Site <- as.factor(metadata$Site)
 metadata$Lineage <- as.factor(metadata$Lineage)
 metadata$Sat_lev <- as.factor(metadata$Sat_lev)
 metadata$Lat <- as.factor(metadata$Lat)
-metadata$SoilP <- as.numeric(metadata$X15SoilP)
-metadata$SoilN <- as.numeric(metadata$X15SoilN)
-metadata$SoilC <- as.numeric(metadata$X15SoilC)
-metadata$TisN <- as.numeric(metadata$X15TisN)
+metadata$SoilP <- as.numeric(metadata$SoilP)
+metadata$SoilN <- as.numeric(metadata$SoilN)
+metadata$SoilC <- as.numeric(metadata$SoilC)
+metadata$TisN <- as.numeric(metadata$TisN)
+metadata$TisC <- as.numeric(metadata$TisC)
+metadata$TisP <- as.numeric(metadata$TisP)
 
+metadata$Sat <- as.numeric(metadata$Sat)
 meta_alpha$Lineage <- as.factor(meta_alpha$Lineage)
 
 clrs2 <- c(Inv = "blue", Nat = "red")
@@ -154,6 +162,97 @@ meta_finite <- metadata[is.finite(metadata$SoilN), ]
 meta_finite$Lineage <- as.factor(meta_finite$Lineage)
 meta_finite$Site <- as.factor(meta_finite$Site)
 meta_finite$SoilN <- as.numeric(meta_finite$SoilN)
+
+logvars <- log(metadata[ , c(7,9:11)]+1)
+logvars <- data.frame(metadata$Site, metadata$Lineage, metadata$Sat_lev, logvars)
+logvars <- logvars[is.finite(logvars$SoilN), ]
+
+pairs(logvars[ , -c(1:3)], lower.panel = NULL, col = as.numeric(logvars$metadata.Sat_lev))
+
+env.pca <- princomp(logvars[ , -c(1:3)])
+
+biplot(env.pca)
+
+env.rda <- rda(logvars[ , -c(1:3)])
+pca.pts <- as.data.frame(scores(env.rda)["sites"])
+vec.coords <- as.data.frame(scores(env.rda)["species"])
+
+
+biplot(env.rda, display = c("sites", 
+                   "species"),
+       type = c("text",
+                "points"))
+ordihull(env.rda, group = logvars$metadata.Lineage, col = "black", lwd = 2, lty = c(1,2))
+
+ordihull(env.rda, group = logvars$metadata.Sat_lev, col = c("dark green","blue", "brown" ))
+#ordiellipse(env.rda,  group = logvars$metadata.Lineage, kind = "sd", col = "black", lwd = 2, lty = c(1,2))
+
+#ordiellipse(env.rda,  group = logvars$metadata.Sat_lev, kind = "sd", col = c("brown","dark green","blue"))
+
+legend("bottomleft",
+       col = c("brown","dark green","blue"), 
+       lty = 1,
+       lwd = 2,
+       legend = unique(logvars$metadata.Sat_lev))
+
+legend("bottomright",
+       col = "black", 
+       lty = c(1,2),
+       lwd = 2,
+       legend = unique(logvars$metadata.Lineage))
+
+
+```
+```{r PCA plot, echo = F, include = T}
+quartz.options(height=6 , width = 6)
+plot.new()
+par(oma = c(1, 1, 1, 1))
+par(mar = c(3, 3, 0.5, 3))
+par(xpd = NA)
+plot.window(xlim = c(-2,1), ylim = c(-2,1))
+axis(1)
+axis(2)
+
+
+points(pca.pts$sites.PC1, pca.pts$sites.PC2)
+lines(x = c(0,0,0), y = c(-2,0,1), lty = 3)
+lines(x = c(-2,0,1), y = c(0,0,0), lty = 3)
+arrows(x0 = 0, x1 = vec.coords$species.PC1, y0 = 0, y1 = vec.coords$species.PC2, angle = 30, col = "red", length = 0.05)
+text(x = vec.coords$species.PC1, y = vec.coords$species.PC2, label = rownames(vec.coords), cex = 0.8, pos = 1, col = "red")
+#ordihull(env.rda, group = logvars$metadata.Lineage, col = "black", lwd = 2, lty = c(1,2))
+
+#ordihull(env.rda, group = logvars$metadata.Sat_lev, col = c("dark green","blue", "brown" ))
+mtext(side = 1, line = 3, text = "PC1")
+mtext(side = 2, line = 3, text = "PC2")
+
+#legend(1,1,
+#       col = c("brown","dark green","blue"), 
+#       lty = 1,
+#       lwd = 2,
+#       legend = c("Unsaturated", "Saturated", "High Water"), xpd = T, bty = "n")
+
+#legend(1,-1,
+#       col = "black", 
+#       lty = c(1,2),
+#       lwd = 2,
+#       legend = unique(logvars$metadata.Lineage), xpd = T, bty = "n")
+
+
+```
+```{r t tests for nutrients by lineage, echo = F, include = T}
+mean(metadata$SoilN[metadata$Lineage == "Nat"], na.rm = T)
+
+tsoilN <- t.test(SoilN ~ Lineage, data = metadata)
+tsoilN
+tsoilP <- t.test(SoilP ~ Lineage, data = metadata)
+tsoilP
+chi.sat <- chisq.test(x = metadata$Sat_lev, y = metadata$Lineage, simulate.p.value = T)
+chi.sat
+
+```
+
+
+```{r nutrient stripcharts, echo = F, include = T}
 # 
 stripchart(SoilN ~ Lineage + Site, data = meta_finite, vertical = T, ylab = "Percent Soil N", ylim = c(0,3), xlab = NULL, axes = F, pch = 20, jitter = 0.1, col = clrs2[levels(meta_alpha$Lineage)])
 # 
@@ -380,8 +479,9 @@ meta_col$Site.x <- as.factor(meta_col$Site.x)
 meta_col$TisN <- as.numeric(meta_col$TisN)
 meta_col$SoilP <- as.numeric(meta_col$SoilP)
 meta_col$SoilN <- as.numeric(meta_col$SoilN)
+meta_col$Sat <- as.numeric(meta_col$Sat)
 
-reg_colN <- lm(meta_col$per_col ~ meta_col$SoilN)
+reg_colN <- lm(meta_col$per_col ~ meta_col$SoilN + meta_col$SoilP + meta_col$Sat)
 reg_colN
 summary(reg_colN)
 
@@ -452,7 +552,7 @@ mtext(side=1, at=c(1,2,3), line=0.5, text = c("Standing Water", "Saturated", "Un
 kw_col <- kruskal.test(meta_col$per_col ~ meta_col$Sat_lev)
 kw_col
 
-an_sat <- aov(per_col ~ Lineage.x*Sat_lev, data = meta_col)
+an_sat <- aov(per_col ~ Site.x + Sat_lev + Lineage.x + Lineage.x:Sat_lev + Site.x:Lineage.x, data = meta_col)
 summary(an_sat)
 
 ```
@@ -479,9 +579,96 @@ kw_col <- kruskal.test(meta_col$per_col ~ meta_col$Sat_lev)
 kw_lin <- kruskal.test(meta_col$per_col ~ meta_col$Lineage.x)
 an_col_sat <- aov(per_col ~ Sat_lev * Lineage.x, data = meta_col)
 summary(an_col_sat)
+
+results <- lm(per_col ~ Site.x + Lineage.x + Lineage.x:Sat + Site.x:Lineage.x  + Sat + SoilP + SoilN, data = meta_col)
+results
+ancova <- anova(results)
+ancova
+
+results2 <- lm(per_col ~  Lineage.x + Lineage.x:Sat + Sat + SoilP + SoilN, data = meta_col)
+results2
+ancova2 <- anova(results2)
+ancova2
+
 ```
 
 This shows that the trend towards higher colonization in Non-native persists regardless of water level differences. However the differences are most pronounced in un-saturated soils
+```{r nat vs non percol with sat, echo=F, include=T}
+table(meta_col$Sat_lev)
+
+
+percol_wsat <- matrix(NA, nrow = 48, ncol = 5)
+#rownames(percol_wsat) <- unique(percol15$Site)
+colnames(percol_wsat) <- c("Site", "Lineage", "Sat", "Percol", "SE")
+
+#separate by lineage; separate by site; separate by sat level
+#calculate mean, se
+
+lins <- as.character(unique(meta_col$Lineage.x))
+sites <- as.character(unique(meta_col$Site.x))
+sats <- as.character(unique(meta_col$Sat_lev))
+x <- 1
+
+#for(i in 1:nrow(percol_wsat)){
+  for(ii in sites){
+    sitesub <- meta_col[meta_col$Site.x == ii,  ]
+    for(hh in lins){
+      linsub <- sitesub[sitesub$Lineage.x == hh, ]
+      for(jj in sats){
+        satsub <- linsub[linsub$Sat_lev == jj, ]
+        percol_wsat[x, 1] <- ii
+        percol_wsat[x, 2] <- hh
+        percol_wsat[x, 3] <- jj
+        num <- nrow(satsub)
+        sitesat <- rep(NA, num)
+        if(num > 1){
+          for(pp in 1:num){
+            sitesat[pp] <- satsub$per_col[pp]
+          }
+        }else{
+          sitesat <- satsub$per_col
+        }
+        percol_wsat[x, 4] <- mean(sitesat)
+        percol_wsat[x, 5] <- (sd(sitesat))/(sqrt(num))
+        x <- x+1
+      }
+    }
+  }
+#}
+Nat_percol <- c(0.0167, 0.1004, 0.01, 0.093, 0.0467, 0.09)
+names(Nat_percol) <- c("Sat_HI", "UN", "Sat_HI", "Sat", "Sat_HI", "Sat")
+Inv_percol <- c(0.09, 0.232, 0.09, 0.12, 0.1067, 0.14)
+names(Inv_percol) <- c("Sat_HI", "UN", "Sat_HI", "Sat", "Sat_HI", "Sat")
+Nat_ster <- c(0.0120, 0.0413, 0, 0.0450, 0.0133, 0)
+Inv_ster <- c(0.0252, 0.0302, 0.023, 0.0306, 0.0285, 0)
+clrs <- c(Sat_HI = "blue", Sat = "dark green", UN = "brown")
+
+
+quartz.options(height=6 , width = 6)
+plot.new()
+par(oma = c(1, 1, 1, 1))
+par(mar = c(3, 3, 0.5, 9))
+plot.window(xlim = c(0,0.4), ylim = c(0, 0.4))
+axis(1)
+axis(2)
+
+
+arrows(x0 = Nat_percol, x1 = Nat_percol + Nat_ster, y0 = Inv_percol, angle = 90, length = 0.05)
+arrows(x0 =Nat_percol, x1 = Nat_percol - Nat_ster, y0 = Inv_percol, angle = 90, length = 0.05)
+arrows(x0 = Nat_percol, y0 = Inv_percol, y1 = Inv_percol + Inv_ster, angle = 90, length = 0.05)
+arrows(x0 = Nat_percol, y0 = Inv_percol, y1 = Inv_percol - Inv_ster, angle = 90, length = 0.05)
+points(x = Nat_percol, y = Inv_percol, pch = 16, col = clrs[names(Inv_percol)], cex = 1.5)
+box()
+lines(x = c(0,0.5,1), y = c(0,0.5,1), type = "l")
+mtext(side = 1, line = 3, text = "Native Percent Colonization")
+mtext(side = 2, line = 3, text = "Non-Native Percent Colonization")
+legend_text <- c("Unsaturated", "Saturated", "Standing Water")
+legend(0.42,0.42, legend_text, pch = 16, 
+       col = c("brown","dark green","blue"), 
+       pt.lwd = 2, pt.cex = 1.5, xpd = T)
+box()
+#text(x = nt_by_site$Native, y = nt_by_site$Invasive, labels = rownames(nt_by_site), adj = c(0,0), cex = 0.7)
+```
 
 ```{r geog col, echo = F, include=T}
 geo <- c(North = "white", South = "grey")
@@ -574,8 +761,30 @@ hist(meta_alpha$npshannon, breaks = 6)
 Assuming those are normally distributed, here are the results of an ANOVA by site and lineage. No significant difference in alpha diversity by site or lineage. 
 
 ```{r ANOVA shannon, echo = F, include = T}
-an_shannon <- aov(npshannon ~ Site * Lineage, data = meta_alpha)
+an_shannon <- aov(npshannon ~ Site + Sat_lev + Lineage, data = meta_alpha)
 summary(an_shannon)
+
+shan_mean<- tapply(meta_alpha$npshannon, meta_alpha$Lineage, FUN = "mean")
+shan_mean
+shan_sd<- tapply(meta_alpha$npshannon, meta_alpha$Lineage, FUN = "sd")
+shan_sd
+
+an_chao <- aov(chao ~ Site + Sat_lev + Lineage, data = meta_alpha)
+summary(an_chao)
+
+chao_mean<- tapply(meta_alpha$chao, meta_alpha$Lineage, FUN = "mean")
+chao_mean
+chao_sd<- tapply(meta_alpha$chao, meta_alpha$Lineage, FUN = "sd")
+chao_sd
+
+an_sobs <- aov(sobs ~ Site + Sat_lev + Lineage, data = meta_alpha)
+summary(an_sobs)
+
+sobs_mean<- tapply(meta_alpha$sobs, meta_alpha$Lineage, FUN = "mean")
+sobs_mean
+sobs_sd<- tapply(meta_alpha$sobs, meta_alpha$Lineage, FUN = "sd")
+sobs_sd
+
 ```
 
 ##Community Analysis
@@ -587,13 +796,72 @@ The following is a PerMANOVA of phyloytpes by site and Lineage
 shared <- read.table(file= "data/Bickford.subsample.shared", header = T, stringsAsFactors = F, row.names = 2)
 shared <- shared[ ,-c(1,2)]
 
-permfungi <- adonis(shared ~ Lineage * Site, data=meta_alpha, method = "bray")
+permfungi <- adonis(shared ~ Site * Sat_lev * Lineage, data=meta_alpha, method = "bray")
 permfungi
 
 ```
 
 
 There is a significant *site* effect. Lineage and their interaction are non-significant.
+###PCoA
+```{r PCoA fungi, echo = F, include = T}
+brayfun <- vegdist(sqrt(shared), method = "bray")
+pcoa.fun <- cmdscale(brayfun, k=(NROW(shared)-1), eig = TRUE, add = TRUE)
+pcoa.pts <- as.data.frame(pcoa.fun["points"])
+pcoa.eig <- eigenvals(pcoa.fun)
+var.axes <- pcoa.eig/sum(pcoa.eig)
+
+meta_alpha$SoilP <- as.numeric(meta_alpha$SoilP)
+meta_alpha$SoilN <- as.numeric(meta_alpha$SoilN)
+meta_alpha$SoilC <- as.numeric(meta_alpha$SoilC)
+meta_alpha$TisN <- as.numeric(meta_alpha$TisN)
+meta_alpha$TisP <- as.numeric(meta_alpha$TisP)
+meta_alpha$TisC <- as.numeric(meta_alpha$TisC)
+meta_alpha$Sat <- as.numeric(meta_alpha$Sat)
+meta_alpha$Sat_lev <- as.factor(meta_alpha$Sat_lev)
+meta_alpha$Lat <- as.factor(meta_alpha$Lat)
+
+ef <- envfit(pcoa.fun, meta_alpha[ , c(3,7,9:11)], na.rm = T)
+ef
+
+```
+```{r pcoa plot, include=T, echo = F}
+
+#clrs <- c(Nat = "blue", SAT = "dark green", UN = "brown")
+pchs <- c(Nat = 1, Inv = 16)
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 2, 3, 0.5, 9 ))
+par(xpd = NA)
+plot.window(xlim = c(-0.5,0.5), ylim = c(-0.5,0.5))
+axis(side = 1)
+axis(side = 2, las = 1)
+points(x = pcoa.pts[ , 1], y = pcoa.pts[ ,2], asp = 1, pch = pchs[as.character(meta_alpha$Lineage)], 
+      col = "black", cex = 1.5, lwd = 2)
+
+mtext(side = 1, line = 2, text = "PCo 1 (14.2%)")
+mtext(side = 2, line = 3, text = "PCo 2 (7.8%)" )
+
+
+
+#ordiellipse(pcoa.fun, meta_alpha$Lineage == "Inv", show.groups = TRUE, kind = "se", col = "black", conf = 0.95, lty = 1, lwd = 2.0)
+#ordiellipse(pcoa.fun, meta_alpha$Lineage == "Nat", show.groups = TRUE, kind = "se", col = "black", conf = 0.95, lty = 2, lwd = 2.0)
+
+
+plot(ef, p.max = 0.1, col = "black")
+
+#mtext(side = 3, line = -1, at = 0, las = 1, text = "Stress = 0.192")
+
+
+#legend_text <- c("Site           P=0.135", "Lineage    P=0.496")
+#legend(0.5, -0.6, legend_text, pch = NULL, xpd = T, title = "Significance", cex = 0.8, bty = "n", xjust = 0.5) 
+
+legend_text2 <- c("Native", "Non-Native")
+legend(0.54, -0.28, legend_text2, pch = c(1,16), pt.lwd = 2, pt.cex = 1.5, xpd = T)
+box()
+```
 
 ###NMDS
 
@@ -626,17 +894,9 @@ ordiplot(shared.mds0)
 shared.mds <- metaMDS(shared, k=3, trace = F)
 shared.mds
 
-meta_alpha$X15SoilP <- as.numeric(meta_alpha$X15SoilP)
-meta_alpha$X15SoilN <- as.numeric(meta_alpha$X15SoilN)
-meta_alpha$X15SoilC <- as.numeric(meta_alpha$X15SoilC)
-meta_alpha$X15TisN <- as.numeric(meta_alpha$X15TisN)
-meta_alpha$X15TisP <- as.numeric(meta_alpha$X15TisP)
-meta_alpha$X15TisC <- as.numeric(meta_alpha$X15TisC)
-meta_alpha$Sat_lev <- as.factor(meta_alpha$Sat_lev)
-meta_alpha$Lat <- as.factor(meta_alpha$Lat)
 
 
-ef <- envfit(shared.mds, meta_alpha[ , c(6:13)], na.rm = T)
+ef <- envfit(shared.mds, meta_alpha[ , c(7, 9:11)], na.rm = T)
 ef
 clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "brown", Rt2 = "gray", SB = "purple")
 pchs <- c(Nat = 1, Inv = 16)
@@ -667,7 +927,7 @@ NMDS2 <- NMDS_scores[ ,2]
 
 NMDS_scores <- as.data.frame(NMDS_scores)
 
-ef <- envfit(shared.mds, meta_alpha[ , c(8:13)], na.rm = T)
+ef <- envfit(NMDS, meta_alpha[ , c(2,3,7,9:11)], na.rm = T)
 ef
 ```
 
@@ -675,7 +935,7 @@ The following is an NMDS (stress = `r NMDS$stress`) showing Lineage as different
 
 ```{r NMDS plot, include=T, echo = F}
 
-clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "brown", Rt2 = "gray", SB = "purple")
+clrs <- c(SAT_HI = "blue", SAT = "dark green", UN = "brown")
 pchs <- c(Nat = 1, Inv = 16)
 
 quartz.options(height=5, width=5)
@@ -687,32 +947,72 @@ plot.window(xlim = c(-1,1), ylim = c(-1,1))
 axis(side = 1)
 axis(side = 2, las = 1)
 points(NMDS, "sites", pch = pchs[as.character(meta_alpha$Lineage)], 
-      col = clrs[as.character(meta_alpha$Site)], cex = 1.5, lwd = 2)
+      col = clrs[as.character(meta_alpha$Sat_lev)], cex = 1.5, lwd = 2)
 
 mtext(side = 1, line = 2, text = "NMDS1")
 mtext(side = 2, line = 3, text = "NMDS2" )
 
-ordiellipse(NMDS, meta_alpha$Site == "BL", show.groups = TRUE, kind = "se", col = "blue", conf = 0.95, lty = 1, lwd = 2.0)
-ordiellipse(NMDS, meta_alpha$Site == "CB", show.groups = TRUE, kind = "se", col = "red", conf = 0.95, lty = 1, lwd = 2.0)
-ordiellipse(NMDS, meta_alpha$Site == "CH", show.groups = TRUE, kind = "se", col = "dark green", conf = 0.95, lty = 1, lwd = 2.0)
-ordiellipse(NMDS, meta_alpha$Site == "CM", show.groups = TRUE, kind = "se", col = "coral", conf = 0.95, lty = 1, lwd = 2.0)
-ordiellipse(NMDS, meta_alpha$Site == "CR", show.groups = TRUE, kind = "se", col = "black", conf = 0.95, lty = 1, lwd = 2.0)
-ordiellipse(NMDS, meta_alpha$Site == "Rt2", show.groups = TRUE, kind = "se", col = "gray", conf = 0.95, lty = 1, lwd = 2.0)
 
-plot(ef, p.max = 0.1, col = "pink")
+
+ordiellipse(NMDS, meta_alpha$Lineage == "Inv", show.groups = TRUE, kind = "se", col = "black", conf = 0.95, lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Lineage == "Nat", show.groups = TRUE, kind = "se", col = "black", conf = 0.95, lty = 2, lwd = 2.0)
+#ordiellipse(NMDS, meta_alpha$Site == "CH", show.groups = TRUE, kind = "se", col = "dark green", conf = 0.95, lty = 1, lwd = 2.0)
+#ordiellipse(NMDS, meta_alpha$Site == "CM", show.groups = TRUE, kind = "se", col = "coral", conf = 0.95, lty = 1, lwd = 2.0)
+#ordiellipse(NMDS, meta_alpha$Site == "CR", show.groups = TRUE, kind = "se", col = "black", conf = 0.95, lty = 1, lwd = 2.0)
+#ordiellipse(NMDS, meta_alpha$Site == "Rt2", show.groups = TRUE, kind = "se", col = "gray", conf = 0.95, lty = 1, lwd = 2.0)
+
+plot(ef, p.max = 0.1, col = "black")
 
 mtext(side = 3, line = -1, at = 0, las = 1, text = "Stress = 0.192")
 
 
-legend_text <- c("Bullard Lake", "Chelsea", "Cecil Bay", "Cheboygan Marsh", "Castle Rock", "Route 2", "Sturgeon Bay","Point LeBarb")
-legend(1.08,1.08, legend_text, pch = 16, 
-       col = c("blue","dark green","red","coral","black","gray","purple", "brown"), 
-       pt.lwd = 2, pt.cex = 1.5, xpd = T)
+legend_text <- c("Site           P=0.135", "Lineage    P=0.496")
+legend(0.5, -0.6, legend_text, pch = NULL, xpd = T, title = "Significance", cex = 0.8, bty = "n", xjust = 0.5) 
 
 legend_text2 <- c("Native", "Non-Native")
 legend(1.08, -0.5, legend_text2, pch = c(1,16), pt.lwd = 2, pt.cex = 1.5, xpd = T)
 box()
 
+```
+
+```{r NMDS plot by sat, include=T, echo = F}
+
+clrs <- c(SAT_HI = "blue", SAT = "dark green", UN = "brown")
+pchs <- c(Nat = 1, Inv = 16)
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 2, 3, 0.5, 9 ))
+par(xpd = NA)
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+axis(side = 1)
+axis(side = 2, las = 1)
+points(NMDS, "sites", pch = pchs[as.character(meta_alpha$Lineage)], 
+      col = clrs[as.character(meta_alpha$Sat_lev)], cex = 1.5, lwd = 2)
+
+mtext(side = 1, line = 2, text = "NMDS1")
+mtext(side = 2, line = 3, text = "NMDS2" )
+
+
+
+ordiellipse(NMDS, meta_alpha$Lineage == "Inv", show.groups = TRUE, kind = "se", col = "black", conf = 0.95, lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Lineage == "Nat", show.groups = TRUE, kind = "se", col = "black", conf = 0.95, lty = 2, lwd = 2.0)
+
+
+plot(ef, p.max = 0.1, col = "black")
+
+mtext(side = 3, line = -1, at = 0, las = 1, text = "Stress = 0.192")
+#mtext(side = 4, line = 2, at = 1, las = 1, text = "P-Values")
+#mtext(side = 4, line = 0.5, at = 0.8, las = 1, text = "Lineage = 0.744")
+#mtext(side = 4, line = 0.5, at = 0.6, las = 1, text = "Saturation = 0.022")
+
+legend_text <- c("Lineage = 0.744", "Saturation = 0.022")
+legend(0, -0.54, legend_text, pch = NULL, xpd = T, title = "P-Values", cex = 0.8, bty = "n")
+
+legend_text2 <- c("Native", "Non-Native")
+legend(1.08, -0.52, legend_text2, pch = c(1,16), pt.lwd = 2, pt.cex = 1.5, xpd = T)
+box()
 ```
 # RDA
 ```{r RDA, echo = F, include = T}
@@ -720,7 +1020,6 @@ shared.ca <- cca(shared)
 shared.ca
 
 plot(shared.ca)
-biplot(shared.pca, scaling = 3)
 
 ```
 
@@ -744,7 +1043,7 @@ abundant <- mean_rel_abund > 0.001
 rel_abund_subset <- rel_abund[, abundant]
 shared_abundant <- shared[ , abundant]
 
-permabundant <- adonis(shared_abundant ~ Site * Lineage, data = meta_alpha)
+permabundant <- adonis(shared_abundant ~ Site + Sat_lev + Lineage, data = meta_alpha)
 permabundant
 ```
 
@@ -962,7 +1261,7 @@ x1_non <- non_av_ra + non_se_ra
 x0_nat <- nat_av_ra - nat_se_ra
 x1_nat <- nat_av_ra + nat_se_ra
 
-an_ra_asco <- aov(meta_top_phyla$Ascomycota ~ meta_top_phyla$Site * meta_top_phyla$Lineage)
+an_ra_asco <- aov(meta_top_phyla$Ascomycota ~ meta_top_phyla$Lineage * meta_top_phyla$Site)
 summary(an_ra_asco)
 
 an_ra_bas <- aov(meta_top_phyla$Basidiomycota ~ meta_top_phyla$Site * meta_top_phyla$Lineage)
@@ -994,7 +1293,7 @@ summary(an_ra_glom)
 ```
 
 ```{r top phylum plot, echo = F, include=T}
-png("fun_phylum_relabund.png", height = 6, width = 6, units = "in", res = 200)
+#png("fun_phylum_relabund.png", height = 6, width = 6, units = "in", res = 200)
 quartz.options(height=6, width=6)
 plot.new() 
 par(oma = c(1, 1, 1, 1))
@@ -1010,13 +1309,13 @@ arrows(x0 = x0_non, x1 = x1_non, y0 = c(2.5,5.5,8.5,11.5,14.5,17.5), angle = 90,
 axis(side = 2, las = 1, labels = colnames(top_av_phyla), at = c(2,5,8,11,14,17))
 
 
-mtext("Significant Differences",side = 4, line = -2, las = 1, at = 19.5, cex = 1)
-mtext(c("Lineage","Site"),side = 4, las = 1, line = c(-1,3), at = 18.5, cex = 0.9)
-arrows(x0 = c(0.96,1.14), y0 = 1, y1 = 17.5, angle = 0, lwd = 0.75)
-mtext(c(".","ns","ns","ns","ns","ns"), las = 1, side = 4, line = 3, at = c(2.2,5,8,11,14,17), cex = c(2,1,1,1,1,1))
-mtext(c("ns","ns","ns","ns","ns","ns"),side = 4, las = 1, at = c(2,5,8,11,14,17), line = 0, cex = 1)
+mtext("P-Values",side = 4, line = 0, las = 1, at = 21, cex = 1)
+mtext(c("Lineage","Site"),side = 4, las = 1, line = c(-0.5,2.7), at = 19, cex = 0.9)
+arrows(x0 = 1.2, y0 = 1, y1 = 18, angle = 90, length = 0.5, lwd = 0.75)
+mtext(c("0.066","0.09","0.295","0.704","0.801","0.262"), las = 1, side = 4, line = 2.5, at = c(2,5,8,11,14,17), cex = 0.8)
+mtext(c("0.566","0.945","0.669","0.296","1.000","0.366"),side = 4, las = 1, at = c(2,5,8,11,14,17), line = 0, cex = 0.8)
 
-legend(x = 0.55, y = 18, c("Non-native", "Native" ), pch = 22, col = "black", pt.bg = c("gray", "white"), bty = "n", cex = 1)
+legend("top", c("Non-native", "Native" ), pch = 22, col = "black", pt.bg = c("gray", "white"), bty = "n", cex = 1)
 #dev.off()
 
 ```
@@ -1218,21 +1517,21 @@ summary(an_ra_fus)
 quartz.options(height=5, width=5)
 plot.new() 
 par(oma = c(1, 1, 1, 1))
-par(mar = c( 4, 8, 0.5, 8 ))
+par(mar = c( 4, 8, 2, 8 ))
 par(xpd = NA)
 plot.window(xlim = c(-1,1), ylim = c(-1,1))
 
-barplot(height = top_av_genus, beside=T, horiz = T, axisnames = F, xlab = "Relative abundance", xlim = c(0,0.4), col = c("white", "gray"))
-arrows(x0 = x0_nat, x1 = x1_nat, y0 = c(1.5,4.5,7.5,10.5,13.5,16.5,19.5,22.5), angle = 90, lwd = 1.5, length = 0.03, code = 3)
-arrows(x0 = x0_non, x1 = x1_non, y0 = c(2.5,5.5,8.5,11.5,14.5,17.5,20.5,23.5), angle = 90, lwd = 1.5, length = 0.03, code = 3)
-axis(side = 2, las = 1, labels = colnames(top_av_genus), at = c(2,5,8,11,14,17,20,23))
+barplot(height = top_av_genus[ , 1:5], beside=T, horiz = T, axisnames = F, xlab = "Relative abundance", xlim = c(0,0.4), col = c("white", "gray"))
+arrows(x0 = x0_nat[1:5], x1 = x1_nat[1:5], y0 = c(1.5,4.5,7.5,10.5,13.5), angle = 90, lwd = 1.5, length = 0.03, code = 3)
+arrows(x0 = x0_non[1:5], x1 = x1_non[1:5], y0 = c(2.5,5.5,8.5,11.5,14.5), angle = 90, lwd = 1.5, length = 0.03, code = 3)
+axis(side = 2, las = 1, labels = colnames(top_av_genus)[1:5], at = c(2,5,8,11,14))
 
-mtext("Significant Differences",side = 4, line = -2, las = 1, at = 27, cex = 1)
-mtext(c("Lineage","Site"),side = 4, las = 1, line = c(-1,3), at = 25, cex = 0.9)
-arrows(x0 = 0.48, y0 = 1, y1 = 23, angle = 0, lwd = 0.75)
+mtext("P-Values",side = 4, line = 1, las = 1, at = 18, cex = 1)
+mtext(c("Lineage","Site"),side = 4, las = 1, line = c(-0.5,3), at = 16, cex = 0.9)
+arrows(x0 = 0.51, y0 = 1, y1 = 15, angle = 90, length = 0.5, lwd = 0.75)
 
-mtext("ns",side = 4, las = 1, line = 0, at =  c(2,5,8,11,14,17,20,23), cex = 1)
-mtext(c("*","ns","ns","**","ns","ns","*","*"),side = 4, las = 1, line = 3, at =  c(1.25,5,8,10.25,14,17,19.25,22.25), cex = c(2,1,1,2,1,1,2,2))
+mtext(c("0.452", "0.862", "0.638", "0.368","0.509"),side = 4, las = 1, line = 0, at =  c(2,5,8,11,14), cex = 1)
+mtext(c("0.029", "0.548", "0.234","0.006","0.781"),side = 4, las = 1, line = 3, at =  c(2,5,8,11,14), cex = 1)
 
 
 
@@ -1252,6 +1551,7 @@ guilds <- read.table("data/for_funguild.guilds_matched.txt", header = T, sep = "
 #make metadata file for guilds
 guild_data <- guilds[ , -c(2:48)]
 guild_data$Trophic.Mode <- as.factor(guild_data$Trophic.Mode)
+guild_data$TrophicMod <- as.factor(guild_data$TrophicMod)
 guild_data$Guild <- as.factor(guild_data$Guild)
 summary(guild_data)
 
@@ -1333,9 +1633,6 @@ barplot(height = tot_trophic_rel_abund, beside=T, horiz = T, axisnames = F, xlab
 axis(side = 2, las = 1, labels = names(tot_trophic_rel_abund), at = c(0.7,1.9,3.1,4.3,5.5,6.7))
 box()
 ```
-
-Pathogens are most abundant. The pathotroph-symbiotroph category is difficult to know what to do with. I assume they have been shown to have multiple trophic modes depending on the host.  
-
 ```{r trophic by lin, echo = F, include = F}
 # 3. calculate the relative abundance
 SampleID <- rownames(trophic_shared)
@@ -1426,11 +1723,175 @@ legend(-1.5, -2, c("Non-native", "Native" ), pch = 22, col = "black", pt.bg = c(
 
 ```
 
+```{r funguild setup, echo = F, include = F}
+
+guilds <- read.table("data/for_funguild.guilds_matched.txt", header = T, sep = "\t", stringsAsFactors = F)
+
+#make metadata file for guilds
+guild_data <- guilds[ , -c(2:48)]
+guild_data$Trophic.Mode <- as.factor(guild_data$Trophic.Mode)
+guild_data$TrophicMod <- as.factor(guild_data$TrophicMod)
+guild_data$Guild <- as.factor(guild_data$Guild)
+summary(guild_data)
+
+matched_guild_shared <- guilds[ , c(1:48)]
+matched_guild_shared <- data.frame(guild_data$TrophicMod, matched_guild_shared)
+
+### I want rel abundance of each guild
+trans_matched_guild_shared <- data.frame(t(matched_guild_shared))
+
+# how do I combine the number of sequences from each of the OTUs
+
+# in the below, 1 is for rows and 2 is for columns
+trans_matched <- trans_matched_guild_shared[-c(1,2), ]
+
+# how do I repeat this for all phyla?
+#make a loop
+
+#need to know the unique trophic modes 
+trophic_names <- unique(guild_data$TrophicMod)
+# need somwhere to put data - a new shared file
+n_modes <- length(trophic_names)
+n_samples <- nrow(trans_matched)
+trophic_shared <- data.frame(matrix(0, nrow = n_samples, ncol = n_modes))
+rownames(trophic_shared) <- rownames(trans_matched)
+colnames(trophic_shared) <- trophic_names
+
+#my loop
+for(i in trophic_names){
+  trophic_otus <- guild_data[guild_data$TrophicMod == i, "OTU"]
+  guild_shared <- shared[ , trophic_otus]
+  if(length(trophic_otus) > 1){
+    trophic_count <- apply(guild_shared, 1, sum)
+  } else {
+    trophic_count <- guild_shared
+  }
+  trophic_shared[ , i] <- trophic_count
+  
+}
+
+# 3. calculate the relative abundance
+n_seqs <- apply(trophic_shared, 1, sum)
+trophic_rel_abund <- trophic_shared / n_seqs
+
+plotnames <- rownames(trophic_rel_abund) 
+trophic_rel_abund <- data.frame(SampleID = plotnames, trophic_rel_abund)
+
+meta_trophic <- inner_join(trophic_rel_abund, metadata, by = c( "SampleID" = "Code"))
+rownames(meta_trophic) <- meta_trophic$SampleID
+trophic_rel_abund <- trophic_rel_abund[ , -1]
+
+
+tot_trophic_rel_abund <- numeric()
+for(h in colnames(trophic_rel_abund)){
+  y <- mean(trophic_rel_abund[ ,h])
+  tot_trophic_rel_abund[h] <- y
+}
+sum(tot_trophic_rel_abund)
+tot_trophic_rel_abund
+
+L <- sort.list(tot_trophic_rel_abund, decreasing = T)
+tot_trophic_rel_abund <- tot_trophic_rel_abund[L]
+
+
+```
+
+Pathogens are most abundant. The pathotroph-symbiotroph category is difficult to know what to do with. I assume they have been shown to have multiple trophic modes depending on the host.  
+
+```{r trophic by lin, echo = F, include = F}
+# 3. calculate the relative abundance
+SampleID <- rownames(trophic_shared)
+natID <- SampleID[grep(pattern = "Nat", SampleID)]
+nonID <- SampleID[grep(pattern = "Inv", SampleID)]
+
+
+nat_shared <- trophic_shared[natID, ]
+non_shared <- trophic_shared[nonID, ]
+
+
+# 3. calculate the relative abundance for native
+
+nat_seqs <- apply(nat_shared, 1, sum)
+nat_trophic_rel_abund <- nat_shared / nat_seqs
+
+
+# 3. calculate the relative abundance for invasive
+
+non_seqs <- apply(non_shared, 1, sum)
+non_trophic_rel_abund <- non_shared / non_seqs
+
+nat_av_ra <- apply(nat_trophic_rel_abund, 2, mean)
+nat_sd_ra <- apply(nat_trophic_rel_abund, 2, sd)
+nat_se_ra <- nat_sd_ra/sqrt(23)
+
+non_av_ra <- apply(non_trophic_rel_abund, 2, mean)
+non_sd_ra <- apply(non_trophic_rel_abund, 2, sd)
+non_se_ra <- non_sd_ra/sqrt(24)
+
+lin_rel_average <- data.frame(Native = nat_av_ra, NonNative = non_av_ra)
+
+top_av_trophic <- as.matrix(lin_rel_average)
+top_av_trophic <- t(top_av_trophic)
+
+x0_non <- non_av_ra - non_se_ra
+x1_non <- non_av_ra + non_se_ra
+
+x0_nat <- nat_av_ra - nat_se_ra
+x1_nat <- nat_av_ra + nat_se_ra
+
+an_ra_path <- aov(meta_trophic$Pathotroph ~ meta_trophic$Sat_lev * meta_trophic$Lineage)
+summary(an_ra_path)
+
+an_ra_sap <- aov(meta_trophic$Saprotroph ~ meta_trophic$Sat_lev * meta_trophic$Lineage)
+summary(an_ra_sap)
+
+an_ra_sym <- aov(meta_trophic$Symbiotroph ~ meta_trophic$Sat_lev * meta_trophic$Lineage)
+summary(an_ra_sym)
+
+an_ra_psym <- aov(meta_trophic$Pathotroph.Symbiotroph ~ meta_trophic$Sat_lev * meta_trophic$Lineage)
+summary(an_ra_psym)
+
+
+```
+
+```{r Rel abund by trophic mode and Lin, echo=F, include = T}
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 4, 10, 2, 8 ))
+par(xpd = NA)
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+
+barplot(height = top_av_trophic, beside=T, horiz = T, axisnames = F, xlab = "Relative abundance", xlim = c(0,0.65), col = c("white", "black"))
+arrows(x0 = x0_nat, x1 = x1_nat, y0 = c(1.5,4.5,7.5,10.5), angle = 90, length = 0.05, lwd = 1.5, code = 3)
+arrows(x0 = non_av_ra, x1 = x1_non, y0 = c(2.5,5.5,8.5,11.5), angle = 90, length = 0.05, lwd = 1.5, code = 2)
+#arrows(x0 = x0_nat, x1 = x1_nat, y0 = c(1.5,4.5,7.5,10.5), angle = 90, length = 0.05, lwd = 1.5, code = 3)
+arrows(x0 = x0_non, x1 = non_av_ra, y0 = c(2.5,5.5,8.5,11.5), angle = 90, length = 0.05, lwd = 1.5, code = 1, col = "white")
+axis(side = 2, las = 1, labels = colnames(top_av_trophic), at = c(2,5,8,11))
+
+mtext("P-Values",side = 4, line = 1, las = 1, at = 14.5, cex = 1)
+mtext(c("Lineage","Site","L X S"),side = 4, las = 1, line = c(-1,2.5,5), at = 13, cex = 0.9)
+
+#mtext("Significant Differences",side = 1, line = -16, at = 0.8, cex = 1)
+#mtext(c("Lineage","Site"),side = 1, line = -15, at = c(0.72,0.92), cex = 0.9)
+
+arrows(x0 = 0.82, y0 = 1, y1 = 12, angle = 90, lwd = 0.75, length = 0.5)
+arrows(x0 = 1.07, y0 = 1, y1 = 12, angle = 90, lwd = 0.75, length = 0.5)
+mtext(c("0.008","<0.001","0.516","0.391"),side = 4, line = 2.5, las = 1, at = c(2,5,8,11), cex = 0.8)
+mtext(c("0.281","0.253","0.717","0.889"),side = 4, line = 0, las = 1, at = c(2,5,8,11), cex = 0.8)
+mtext(c("0.073","0.038","0.383","0.055"),side = 4, line = 5.2, las = 1, at = c(2,5,8,11), cex = 0.8)
+
+legend(0.18, 13, c("Non-native", "Native" ), pch = 22, col = "black", pt.bg = c("black", "white"), xpd = T, bty = "n", cex = 0.8)
+
+
+```
+
 #####Community by Trophic mode
 Here is a community analysis by trophic mode. First I ran a Permanova to see if the sites had significatly different communities of trophic modes.
 
 ```{r perm by trophic mode, echo = F, include = T}
-perm_trophic <- adonis(trophic_shared ~ Site * Sat_lev * Lineage, data = meta_alpha)
+perm_trophic <- adonis(trophic_shared ~ Site + Sat_lev * Lineage, data = meta_alpha)
 perm_trophic
 
 ```
@@ -1485,89 +1946,801 @@ legend_text2 <- c("Native", "Non-Native")
 legend(1.08,-0.643, legend_text2, pch = c(1,16), pt.lwd = 2, pt.cex = 1.5, xpd = T)
 box()
 ```
+```{r trophicNMDS plot, echo = F, include = T}
+clrs <- c(UN = "black", SAT = "dark green", SAT_HI = "blue")
+
+quartz.options(height=5, width=5)
+plot.new() 
+par(oma = c(1, 1, 1, 1))
+par(mar = c( 2, 3, 0.5, 9 ))
+plot.window(xlim = c(-1,1), ylim = c(-1,1))
+axis(side = 1)
+axis(side = 2, las = 1)
+
+points(trophicNMDS, "sites", pch = 16, 
+      col = clrs[as.character(meta_alpha$Sat_lev)], cex = 1.5)
+
+mtext(side = 1, line = 2, text = "NMDS1")
+mtext(side = 2, line = 3, text = "NMDS2" )
+
+ordiellipse(NMDS, meta_alpha$Sat_lev == "UN", show.groups = TRUE, kind = "se", conf = 0.95, col = "black", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Sat_lev == "SAT", show.groups = TRUE, kind = "se", conf = 0.95, col = "dark green", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Sat_lev == "SAT_HI", show.groups = TRUE, kind = "se", conf = 0.95, col = "blue", lty = 1, lwd = 2.0)
+
+legend_text <- c("Unsaturated", "Saturated", "Standing Water")
+legend(1.08,1.08, legend_text, pch = 16, 
+       col = c("black","dark green","blue"), 
+       pt.lwd = 2, pt.cex = 1.5, xpd = T)
+box()
+```
 
 I performed Kruskel-Wallace tests to see if any individual trophic modes were significantly different by site. None were. 
 
 #### Guild
 
-```{r guild setup, echo = F, include = F}
-
-#need to know the unique trophic modes 
-guild_names <- unique(guild_data$Guild)
-# need somwhere to put data - a new shared file
-n_guilds <- length(guild_names)
-n_samples <- nrow(trans_matched_guild_shared)
-all_guild_shared <- data.frame(matrix(0, nrow = n_samples, ncol = n_guilds))
-rownames(all_guild_shared) <- rownames(trans_matched_guild_shared)
-colnames(all_guild_shared) <- guild_names
-
-#my loop
-for(i in guild_names){
-  guild_otus <- guild_data[guild_data$Guild == i, "OTU"]
-  new_shared <- shared[ , guild_otus]
-  if(length(guild_otus) > 1){
-    guild_count <- apply(new_shared, 1, sum)
-  } else {
-    guild_count <- new_shared
-  }
-  all_guild_shared[ , i] <- guild_count
-  
-}
-
-# 3. calculate the relative abundance
-n_seqs <- apply(all_guild_shared, 1, sum)
-guild_rel_abund <- all_guild_shared / n_seqs
-
-tot_guild_rel_abund <- numeric()
-for(h in colnames(guild_rel_abund)){
-  y <- mean(guild_rel_abund[ ,h])
-  tot_guild_rel_abund[h] <- y
-}
-sum(tot_guild_rel_abund)
-tot_guild_rel_abund
-
-L <- sort.list(tot_guild_rel_abund, decreasing = T)
-tot_guild_rel_abund <- tot_guild_rel_abund[L]
-
-```
-
-Here are the top 10 functional guilds by relative abundance. The bar plot is numbered by the most abundant to least. Refer to the list for guild names
-
-```{r guild plot, echo = F, include=T}
-tot_guild_rel_abund[1:10]
-guild_num_names <- tot_guild_rel_abund
-names(guild_num_names) <- c(1:24)
-barplot(height = guild_num_names[1:10], beside=T)
-
-```
-
-```{r per by guild, echo =F, include = T}
-perm_guild <- adonis(all_guild_shared ~ Site * Lineage, data = meta_alpha)
-perm_guild
-```
-The permanova by functional guild still shows significant difference by site
-
-
-I performed Kruskel-Wallace tests to see if any individual guilds were significantly different by site. None were. 
-
-
-
-
-
-
-
 
 plot NMDS scores against nitrogen content
 
+#ALL the regressions
+
+```{r regressions, echo = F, include = T}
+library(pryr)
+#percent col vs sat
+
+regnat.p1.1 <- lm(meta_col$per_col[meta_col$Lineage.x == "Nat"] ~ meta_col$Sat[meta_col$Lineage.x == "Nat"])
+summary(regnat.p1.1)
+reginv.p1.1 <- lm(meta_col$per_col[meta_col$Lineage.x == "Inv"] ~ meta_col$Sat[meta_col$Lineage.x == "Inv"])
+summary(reginv.p1.1)
+
+
+p1.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_col$Sat, y = meta_col$per_col, pch = pchs[as.character(meta_col$Lineage.x)], xlab = "Soil Saturation", ylab = "Percent Colonization", las = 1)
+  abline(regnat.p1.1, lty = 2)
+  abline(reginv.p1.1)
+ # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#percol vs P
+
+regnat.p1.2 <- lm(meta_col$per_col[meta_col$Lineage.x == "Nat"] ~ meta_col$SoilP[meta_col$Lineage.x == "Nat"])
+summary(regnat.p1.2)
+reginv.p1.2 <- lm(meta_col$per_col[meta_col$Lineage.x == "Inv"] ~ meta_col$SoilP[meta_col$Lineage.x == "Inv"])
+summary(reginv.p1.2)
+
+p1.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_col$SoilP, y = meta_col$per_col, pch = pchs[as.character(meta_col$Lineage.x)], xlab = "Soil P", ylab = "Percent Colonization", las = 1)
+  abline(regnat.p1.2, lty = 2)
+  abline(reginv.p1.2)
+#  legend("topleft", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#percol vs N
+
+regnat.p1.3 <- lm(meta_col$per_col[meta_col$Lineage.x == "Nat"] ~ meta_col$SoilN[meta_col$Lineage.x == "Nat"])
+summary(regnat.p1.3)
+reginv.p1.3 <- lm(meta_col$per_col[meta_col$Lineage.x == "Inv"] ~ meta_col$SoilN[meta_col$Lineage.x == "Inv"])
+summary(reginv.p1.3)
+
+p1.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_col$SoilN, y = meta_col$per_col, pch = pchs[as.character(meta_col$Lineage.x)], xlab = "Soil N", ylab = "Percent Colonization", las = 1)
+  abline(regnat.p1.3, lty = 2)
+  abline(reginv.p1.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Shannon vs. sat
+
+regnat.p2.1 <- lm(meta_alpha$npshannon[meta_alpha$Lineage == "Nat"] ~ meta_alpha$Sat[meta_alpha$Lineage == "Nat"])
+summary(regnat.p2.1)
+reginv.p2.1 <- lm(meta_alpha$npshannon[meta_alpha$Lineage == "Inv"] ~ meta_alpha$Sat[meta_alpha$Lineage == "Inv"])
+summary(reginv.p2.1)
+
+
+p2.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$Sat, y = meta_alpha$npshannon, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "Shannon Diversity", las = 1)
+  abline(regnat.p2.1, lty = 2)
+  abline(reginv.p2.1)
+ # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Shannon vs P
+
+regnat.p2.2 <- lm(meta_alpha$npshannon[meta_alpha$Lineage == "Nat"] ~ meta_alpha$SoilP[meta_alpha$Lineage == "Nat"])
+summary(regnat.p2.2)
+reginv.p2.2 <- lm(meta_alpha$npshannon[meta_alpha$Lineage == "Inv"] ~ meta_alpha$SoilP[meta_alpha$Lineage == "Inv"])
+summary(reginv.p2.2)
+
+
+p2.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilP, y = meta_alpha$npshannon, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Shannon Diversity", las = 1)
+  abline(regnat.p2.2, lty = 2)
+  abline(reginv.p2.2)
+ # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Shannon vs N
+
+regnat.p2.3 <- lm(meta_alpha$npshannon[meta_alpha$Lineage == "Nat"] ~ meta_alpha$SoilN[meta_alpha$Lineage == "Nat"])
+summary(regnat.p2.3)
+reginv.p2.3 <- lm(meta_alpha$npshannon[meta_alpha$Lineage == "Inv"] ~ meta_alpha$SoilN[meta_alpha$Lineage == "Inv"])
+summary(reginv.p2.3)
+
+
+p2.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilN, y = meta_alpha$npshannon, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Shannon Diversity", las = 1)
+  abline(regnat.p2.3, lty = 2)
+  abline(reginv.p2.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Chao vs. sat
+
+regnat.p3.1 <- lm(meta_alpha$chao[meta_alpha$Lineage == "Nat"] ~ meta_alpha$Sat[meta_alpha$Lineage == "Nat"])
+summary(regnat.p3.1)
+reginv.p3.1 <- lm(meta_alpha$chao[meta_alpha$Lineage == "Inv"] ~ meta_alpha$Sat[meta_alpha$Lineage == "Inv"])
+summary(reginv.p3.1)
+
+
+p3.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$Sat, y = meta_alpha$chao, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "Chao Richness", las = 1)
+  abline(regnat.p3.1, lty = 2)
+  abline(reginv.p3.1)
+#  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Shannon vs P
+
+regnat.p3.2 <- lm(meta_alpha$chao[meta_alpha$Lineage == "Nat"] ~ meta_alpha$SoilP[meta_alpha$Lineage == "Nat"])
+summary(regnat.p3.2)
+reginv.p3.2 <- lm(meta_alpha$chao[meta_alpha$Lineage == "Inv"] ~ meta_alpha$SoilP[meta_alpha$Lineage == "Inv"])
+summary(reginv.p3.2)
+
+
+p3.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilP, y = meta_alpha$chao, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Chao Richness", las = 1)
+  abline(regnat.p3.2, lty = 2)
+  abline(reginv.p3.2)
+ # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Chao vs N
+
+regnat.p3.3 <- lm(meta_alpha$chao[meta_alpha$Lineage == "Nat"] ~ meta_alpha$SoilN[meta_alpha$Lineage == "Nat"])
+summary(regnat.p3.3)
+reginv.p3.3 <- lm(meta_alpha$chao[meta_alpha$Lineage == "Inv"] ~ meta_alpha$SoilN[meta_alpha$Lineage == "Inv"])
+summary(reginv.p3.3)
+
+
+p3.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilN, y = meta_alpha$chao, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Chao Richness", las = 1)
+  abline(regnat.p3.3, lty = 2)
+  abline(reginv.p3.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Sobs vs. sat
+
+regnat.p4.1 <- lm(meta_alpha$sobs[meta_alpha$Lineage == "Nat"] ~ meta_alpha$Sat[meta_alpha$Lineage == "Nat"])
+summary(regnat.p4.1)
+reginv.p4.1 <- lm(meta_alpha$sobs[meta_alpha$Lineage == "Inv"] ~ meta_alpha$Sat[meta_alpha$Lineage == "Inv"])
+summary(reginv.p4.1)
+
+
+p4.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$Sat, y = meta_alpha$sobs, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "Fungal Species Observed", las = 1)
+  abline(regnat.p4.1, lty = 2)
+  abline(reginv.p4.1)
+#  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Sobs vs P
+
+regnat.p4.2 <- lm(meta_alpha$sobs[meta_alpha$Lineage == "Nat"] ~ meta_alpha$SoilP[meta_alpha$Lineage == "Nat"])
+summary(regnat.p4.2)
+reginv.p4.2 <- lm(meta_alpha$sobs[meta_alpha$Lineage == "Inv"] ~ meta_alpha$SoilP[meta_alpha$Lineage == "Inv"])
+summary(reginv.p4.2)
+
+
+p4.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilP, y = meta_alpha$sobs, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Fungal Species Observed", las = 1)
+  abline(regnat.p4.2, lty = 2)
+  abline(reginv.p4.2)
+#  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#sobs vs N
+
+regnat.p4.3 <- lm(meta_alpha$sobs[meta_alpha$Lineage == "Nat"] ~ meta_alpha$SoilN[meta_alpha$Lineage == "Nat"])
+summary(regnat.p4.3)
+reginv.p4.3 <- lm(meta_alpha$sobs[meta_alpha$Lineage == "Inv"] ~ meta_alpha$SoilN[meta_alpha$Lineage == "Inv"])
+summary(reginv.p4.3)
+
+
+p4.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilN, y = meta_alpha$sobs, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Fungal Species Observed", las = 1)
+  abline(regnat.p4.3, lty = 2)
+  abline(reginv.p4.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#PCoA Scores (Axis 1) vs. sat
+
+a1pts <- pcoa.pts[ , 1]
+
+regnat.p5.1 <- lm(a1pts[grepl("Nat", rownames(pcoa.pts))] ~ meta_alpha$Sat[meta_alpha$Lineage == "Nat"])
+summary(regnat.p4.1)
+reginv.p5.1 <- lm(a1pts[grepl("Inv", rownames(pcoa.pts))] ~ meta_alpha$Sat[meta_alpha$Lineage == "Inv"])
+summary(reginv.p5.1)
+
+
+p5.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$Sat, y = a1pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "PCoA Axis 1", las = 1)
+  abline(regnat.p5.1, lty = 2)
+  abline(reginv.p5.1)
+#  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#PCoA Scores (Axis 1) vs P
+
+regnat.p5.2 <- lm(a1pts[grepl("Nat", rownames(pcoa.pts))] ~ meta_alpha$SoilP[meta_alpha$Lineage == "Nat"])
+summary(regnat.p5.2)
+reginv.p5.2 <- lm(a1pts[grepl("Inv", rownames(pcoa.pts))] ~ meta_alpha$SoilP[meta_alpha$Lineage == "Inv"])
+summary(reginv.p5.2)
+
+
+p5.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilP, y = a1pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "PCoA Axis 1", las = 1)
+  abline(regnat.p5.2, lty = 2)
+  abline(reginv.p5.2)
+#  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#PCoA Scores (Axis 1) vs N
+
+regnat.p5.3 <- lm(a1pts[grepl("Nat", rownames(pcoa.pts))] ~ meta_alpha$SoilN[meta_alpha$Lineage == "Nat"])
+summary(regnat.p5.3)
+reginv.p5.3 <- lm(a1pts[grepl("Inv", rownames(pcoa.pts))] ~ meta_alpha$SoilN[meta_alpha$Lineage == "Inv"])
+summary(reginv.p5.3)
+
+
+p5.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilN, y = a1pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "PCoA Axis 1", las = 1)
+  abline(regnat.p5.3, lty = 2)
+  abline(reginv.p5.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#PCoA Scores (Axis 2) vs. sat
+
+a2pts <- pcoa.pts[ , 2]
+
+regnat.p6.1 <- lm(a2pts[grepl("Nat", rownames(pcoa.pts))] ~ meta_alpha$Sat[meta_alpha$Lineage == "Nat"])
+summary(regnat.p6.1)
+reginv.p6.1 <- lm(a2pts[grepl("Inv", rownames(pcoa.pts))] ~ meta_alpha$Sat[meta_alpha$Lineage == "Inv"])
+summary(reginv.p6.1)
+
+
+p6.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$Sat, y = a2pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "PCoA Axis 2", las = 1)
+  abline(regnat.p6.1, lty = 2)
+  abline(reginv.p6.1)
+#  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#PCoA Scores (Axis 2) vs P
+
+regnat.p6.2 <- lm(a2pts[grepl("Nat", rownames(pcoa.pts))] ~ meta_alpha$SoilP[meta_alpha$Lineage == "Nat"])
+summary(regnat.p6.2)
+reginv.p6.2 <- lm(a2pts[grepl("Inv", rownames(pcoa.pts))] ~ meta_alpha$SoilP[meta_alpha$Lineage == "Inv"])
+summary(reginv.p6.2)
+
+
+p6.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilP, y = a2pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "PCoA Axis 2", las = 1)
+  abline(regnat.p6.2, lty = 2)
+  abline(reginv.p6.2)
+ # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#PCoA Scores (Axis 2) vs N
+
+regnat.p6.3 <- lm(a2pts[grepl("Nat", rownames(pcoa.pts))] ~ meta_alpha$SoilN[meta_alpha$Lineage == "Nat"])
+summary(regnat.p6.3)
+reginv.p6.3 <- lm(a2pts[grepl("Inv", rownames(pcoa.pts))] ~ meta_alpha$SoilN[meta_alpha$Lineage == "Inv"])
+summary(reginv.p6.3)
+
+
+p6.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilN, y = a2pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "PCoA Axis 2", las = 1)
+  abline(regnat.p6.3, lty = 2)
+  abline(reginv.p6.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Asco Rel. Abund vs. sat
+
+regnat.p7.1 <- lm(meta_top_phyla$Ascomycota[meta_top_phyla$Lineage == "Nat"] ~ meta_top_phyla$Sat[meta_top_phyla$Lineage == "Nat"])
+summary(regnat.p7.1)
+reginv.p7.1 <- lm(meta_top_phyla$Ascomycota[meta_top_phyla$Lineage == "Inv"] ~ meta_top_phyla$Sat[meta_top_phyla$Lineage == "Inv"])
+summary(reginv.p7.1)
+
+
+p7.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_top_phyla$Sat, y = meta_top_phyla$Ascomycota, pch = pchs[as.character(meta_top_phyla$Lineage)], xlab = "Soil Saturation", ylab = "Ascomycota Relative Abundance", las = 1)
+  abline(regnat.p7.1, lty = 2)
+  abline(reginv.p7.1)
+#  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Asco Rel. Abund vs P
+
+regnat.p7.2 <- lm(meta_top_phyla$Ascomycota[meta_top_phyla$Lineage == "Nat"] ~ meta_top_phyla$SoilP[meta_top_phyla$Lineage == "Nat"])
+summary(regnat.p7.2)
+reginv.p7.2 <- lm(meta_top_phyla$Ascomycota[meta_top_phyla$Lineage == "Inv"] ~ meta_top_phyla$SoilP[meta_top_phyla$Lineage == "Inv"])
+summary(reginv.p7.2)
+
+
+p7.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_top_phyla$SoilP, y = meta_top_phyla$Ascomycota, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Ascomycota Relative Abundance", las = 1)
+  abline(regnat.p7.2, lty = 2)
+  abline(reginv.p7.2)
+#  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Asco Rel. Abund vs N
+
+regnat.p7.3 <- lm(meta_top_phyla$Ascomycota[meta_top_phyla$Lineage == "Nat"] ~ meta_top_phyla$SoilN[meta_top_phyla$Lineage == "Nat"])
+summary(regnat.p7.3)
+reginv.p7.3 <- lm(meta_top_phyla$Ascomycota[meta_top_phyla$Lineage == "Inv"] ~ meta_top_phyla$SoilN[meta_top_phyla$Lineage == "Inv"])
+summary(reginv.p7.3)
+
+
+p7.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_top_phyla$SoilN, y = meta_top_phyla$Ascomycota, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Ascomycota Relative Abundance", las = 1)
+  abline(regnat.p7.3, lty = 2)
+  abline(reginv.p7.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Path Rel. Abund vs. sat
+
+regnat.p8.1 <- lm(meta_trophic$Pathotroph[meta_trophic$Lineage == "Nat"] ~ meta_trophic$Sat[meta_trophic$Lineage == "Nat"])
+summary(regnat.p8.1)
+reginv.p8.1 <- lm(meta_trophic$Pathotroph[meta_trophic$Lineage == "Inv"] ~ meta_trophic$Sat[meta_trophic$Lineage == "Inv"])
+summary(reginv.p8.1)
+
+
+p8.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$Sat, y = meta_trophic$Pathotroph, pch = pchs[as.character(meta_top_phyla$Lineage)], xlab = "Soil Saturation", ylab = "Pathotroph Relative Abundance", las = 1)
+  abline(regnat.p8.1, lty = 2)
+  abline(reginv.p8.1)
+#  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Path Rel. Abund vs P
+
+regnat.p8.2 <- lm(meta_trophic$Pathotroph[meta_trophic$Lineage == "Nat"] ~ meta_trophic$SoilP[meta_trophic$Lineage == "Nat"])
+summary(regnat.p8.2)
+reginv.p8.2 <- lm(meta_trophic$Pathotroph[meta_trophic$Lineage == "Inv"] ~ meta_trophic$SoilP[meta_trophic$Lineage == "Inv"])
+summary(reginv.p8.2)
+
+
+p8.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilP, y = meta_trophic$Pathotroph, pch = pchs[as.character(meta_trophic$Lineage)], xlab = "Soil P", ylab = "Pathotroph Relative Abundance", las = 1)
+  abline(regnat.p8.2, lty = 2)
+  abline(reginv.p8.2)
+#  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Path Rel. Abund vs N
+
+regnat.p8.3 <- lm(meta_trophic$Pathotroph[meta_trophic$Lineage == "Nat"] ~ meta_trophic$SoilN[meta_trophic$Lineage == "Nat"])
+summary(regnat.p8.3)
+reginv.p8.3 <- lm(meta_trophic$Pathotroph[meta_trophic$Lineage == "Inv"] ~ meta_trophic$SoilN[meta_trophic$Lineage == "Inv"])
+summary(reginv.p8.3)
+
+
+p8.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilN, y = meta_trophic$Pathotroph, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Pathotroph Relative Abundance", las = 1)
+  abline(regnat.p8.3, lty = 2)
+  abline(reginv.p8.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Sap Rel. Abund vs Sat
+
+regnat.p9.1 <- lm(meta_trophic$Saprotroph[meta_trophic$Lineage == "Nat"] ~ meta_trophic$Sat[meta_trophic$Lineage == "Nat"])
+summary(regnat.p9.1)
+reginv.p9.1 <- lm(meta_trophic$Saprotroph[meta_trophic$Lineage == "Inv"] ~ meta_trophic$Sat[meta_trophic$Lineage == "Inv"])
+summary(reginv.p9.1)
+
+
+p9.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$Sat, y = meta_trophic$Saprotroph, pch = pchs[as.character(meta_trophic$Lineage)], xlab = "Soil P", ylab = "Saprotroph Relative Abundance", las = 1)
+  abline(regnat.p9.1, lty = 2)
+  abline(reginv.p9.1)
+#  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+#Sap Rel. Abund vs P
+
+regnat.p9.2 <- lm(meta_trophic$Saprotroph[meta_trophic$Lineage == "Nat"] ~ meta_trophic$SoilP[meta_trophic$Lineage == "Nat"])
+summary(regnat.p9.2)
+reginv.p9.2 <- lm(meta_trophic$Saprotroph[meta_trophic$Lineage == "Inv"] ~ meta_trophic$SoilP[meta_trophic$Lineage == "Inv"])
+summary(reginv.p9.2)
+
+
+p9.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilP, y = meta_trophic$Pathotroph, pch = pchs[as.character(meta_trophic$Lineage)], xlab = "Soil P", ylab = "Saprotroph Relative Abundance", las = 1)
+  abline(regnat.p9.2, lty = 2)
+  abline(reginv.p9.2)
+#  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Asco Rel. Abund vs N
+
+regnat.p9.3 <- lm(meta_trophic$Saprotroph[meta_trophic$Lineage == "Nat"] ~ meta_trophic$SoilN[meta_trophic$Lineage == "Nat"])
+summary(regnat.p9.3)
+reginv.p9.3 <- lm(meta_trophic$Saprotroph[meta_trophic$Lineage == "Inv"] ~ meta_trophic$SoilN[meta_trophic$Lineage == "Inv"])
+summary(reginv.p9.3)
+
+
+p9.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilN, y = meta_trophic$Saprotroph, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Saprotroph Relative Abundance", las = 1)
+  abline(regnat.p9.3, lty = 2)
+  abline(reginv.p9.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Gib Rel. Abund vs. sat
+
+regnat.p10.1 <- lm(meta_top_genus$Gibberella[meta_top_genus$Lineage == "Nat"] ~ meta_top_genus$Sat[meta_top_genus$Lineage == "Nat"])
+summary(regnat.p10.1)
+reginv.p10.1 <- lm(meta_top_genus$Gibberella[meta_top_genus$Lineage == "Inv"] ~ meta_top_genus$Sat[meta_top_genus$Lineage == "Inv"])
+summary(reginv.p10.1)
+
+
+p10.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_top_genus$Sat, y = meta_top_genus$Gibberella, pch = pchs[as.character(meta_top_genus$Lineage)], xlab = "Soil Saturation", ylab = "Gibberella Relative Abundance", las = 1)
+  abline(regnat.p10.1, lty = 2)
+  abline(reginv.p10.1)
+#  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Gib Rel. Abund vs P
+
+regnat.p10.2 <- lm(meta_top_genus$Gibberella[meta_top_genus$Lineage == "Nat"] ~ meta_top_genus$SoilP[meta_top_genus$Lineage == "Nat"])
+summary(regnat.p10.2)
+reginv.p10.2 <- lm(meta_top_genus$Gibberella[meta_top_genus$Lineage == "Inv"] ~ meta_top_genus$SoilP[meta_top_genus$Lineage == "Inv"])
+summary(reginv.p10.2)
+
+
+p10.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_top_genus$SoilP, y = meta_top_genus$Gibberella, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Gibberella Relative Abundance", las = 1)
+  abline(regnat.p10.2, lty = 2)
+  abline(reginv.p10.2)
+#  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Gib Rel. Abund vs N
+
+regnat.p10.3 <- lm(meta_top_genus$Gibberella[meta_top_genus$Lineage == "Nat"] ~ meta_top_genus$SoilN[meta_top_genus$Lineage == "Nat"])
+summary(regnat.p10.3)
+reginv.p10.3 <- lm(meta_top_genus$Gibberella[meta_top_genus$Lineage == "Inv"] ~ meta_top_genus$SoilN[meta_top_genus$Lineage == "Inv"])
+summary(reginv.p10.3)
+
+
+p10.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilN, y = meta_top_genus$Gibberella, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Gibberella Relative Abundance", las = 1)
+  abline(regnat.p10.3, lty = 2)
+  abline(reginv.p10.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Stag Rel. Abund vs. sat
+
+regnat.p11.1 <- lm(meta_top_genus$Stagonospora[meta_top_genus$Lineage == "Nat"] ~ meta_top_genus$Sat[meta_top_genus$Lineage == "Nat"])
+summary(regnat.p11.1)
+reginv.p11.1 <- lm(meta_top_genus$Stagonospora[meta_top_genus$Lineage == "Inv"] ~ meta_top_genus$Sat[meta_top_genus$Lineage == "Inv"])
+summary(reginv.p11.1)
+
+
+p11.1 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_top_genus$Sat, y = meta_top_genus$Stagonospora, pch = pchs[as.character(meta_top_genus$Lineage)], xlab = "Soil Saturation", ylab = "Stagonospora Relative Abundance", las = 1)
+  abline(regnat.p11.1, lty = 2)
+  abline(reginv.p11.1)
+#  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Stag Rel. Abund vs P
+
+regnat.p11.2 <- lm(meta_top_genus$Stagonospora[meta_top_genus$Lineage == "Nat"] ~ meta_top_genus$SoilP[meta_top_genus$Lineage == "Nat"])
+summary(regnat.p11.2)
+reginv.p11.2 <- lm(meta_top_genus$Stagonospora[meta_top_genus$Lineage == "Inv"] ~ meta_top_genus$SoilP[meta_top_genus$Lineage == "Inv"])
+summary(reginv.p11.2)
+
+
+p11.2 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_top_genus$SoilP, y = meta_top_genus$Stagonospora, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Stagonospora Relative Abundance", las = 1)
+  abline(regnat.p11.2, lty = 2)
+  abline(reginv.p11.2)
+#  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+#Stag Rel. Abund vs N
+
+regnat.p11.3 <- lm(meta_top_genus$Stagonospora[meta_top_genus$Lineage == "Nat"] ~ meta_top_genus$SoilN[meta_top_genus$Lineage == "Nat"])
+summary(regnat.p11.3)
+reginv.p11.3 <- lm(meta_top_genus$Stagonospora[meta_top_genus$Lineage == "Inv"] ~ meta_top_genus$SoilN[meta_top_genus$Lineage == "Inv"])
+summary(reginv.p11.3)
+
+
+p11.3 %<a-% {
+  pchs <- c(Nat = 1, Inv = 16)
+  plot(x = meta_alpha$SoilN, y = meta_top_genus$Stagonospora, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Stagonospora Relative Abundance", las = 1)
+  abline(regnat.p11.3, lty = 2)
+  abline(reginv.p11.3)
+  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+}
+
+```
+
+```{r regression plots, echo = F, include = T}
+
+# Display the saved plot
+
+
+p1.1
+p1.2
+p1.3
+p2.1
+p2.2
+p2.3
+p3.1
+p3.2
+p3.3
+p4.1
+p4.2
+p4.3
+p5.1
+p5.2
+p5.3
+p6.1
+p6.2
+p6.3
+p7.1
+p7.2
+p7.3
+p8.1
+p8.2
+p8.3
+p9.1
+p9.2
+p9.3
+p10.1
+p10.2
+p10.3
+p11.1
+p11.2
+p11.3
+```
+
+```{r ANCOVAs, echo = F, include = T}
+
+#Fungal Colonization
+results <- lm(per_col ~  Lineage.x + Lineage.x:Sat + Sat + SoilP + SoilN, data = meta_col)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Shannon
+results <- lm(npshannon ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Chao
+results <- lm(chao ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Sobs
+results <- lm(sobs ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#PCoA Axis 1
+results <- lm(a1pts ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#PCoA Axis 2
+results <- lm(a2pts ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Asco RA
+results <- lm(Ascomycota ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_top_phyla)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Gib RA
+results <- lm(Gibberella ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_top_genus)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Stag RA
+results <- lm(Stagonospora ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_top_genus)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Path RA
+results <- lm(Pathotroph ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_trophic)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Sap RA
+results <- lm(Saprotroph ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_trophic)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+```
+```{r ANOVAs, echo = F, include = T}
+
+#Fungal Colonization
+results <- lm(per_col ~  Lineage.x * Site.x, data = meta_col, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Shannon
+results <- lm(npshannon ~  Lineage * Site, data = meta_alpha, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Chao
+results <- lm(chao ~  Lineage * Site, data = meta_alpha, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Sobs
+results <- lm(sobs ~  Lineage * Site, data = meta_alpha, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#PCoA Axis 1
+results <- lm(a1pts ~  Lineage * Site, data = meta_alpha, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#PCoA Axis 2
+results <- lm(a2pts ~  Lineage * Site, data = meta_alpha, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Asco RA
+results <- lm(Ascomycota ~  Lineage * Site, data = meta_top_phyla, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Basidio RA
+results <- lm(Basidiomycota ~  Lineage * Site, data = meta_top_phyla, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Unclassified RA
+results <- lm(Unclassified ~  Lineage * Site, data = meta_top_phyla, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Zygomycota RA
+results <- lm(Zygomycota ~  Lineage * Site, data = meta_top_phyla, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Rozellomycota RA
+results <- lm(Rozellomycota ~  Lineage * Site, data = meta_top_phyla, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Glomeromycota RA
+results <- lm(Glomeromycota ~  Lineage * Site, data = meta_top_phyla, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Gib RA
+results <- lm(Gibberella ~  Lineage * Site, data = meta_top_genus, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Micro
+results <- lm(Microdochium ~  Lineage * Site, data = meta_top_genus, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Tetra
+results <- lm(Tetracladium ~  Lineage * Site, data = meta_top_genus, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Stag RA
+results <- lm(Stagonospora ~  Lineage * Site, data = meta_top_genus, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Cadophora
+results <- lm(Cadophora ~  Lineage * Site, data = meta_top_genus, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Path RA
+results <- lm(Pathotroph ~  Lineage * Site, data = meta_trophic, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Sap RA
+results <- lm(Saprotroph ~  Lineage * Site, data = meta_trophic, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Path:Sym RA
+results <- lm(Pathotroph.Symbiotroph ~  Lineage * Site, data = meta_trophic, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+
+#Sym RA
+results <- lm(Symbiotroph ~  Lineage * Site, data = meta_trophic, contrasts=list(Lineage=contr.sum, Site=contr.sum))
+anova <- Anova(results, type = "III")
+anova
+```
+
 ```{r nutrients by community, echo = F, include = T}
 
-meta_alpha$X15SoilN <- as.numeric(meta_alpha$X15SoilN)
-ma_finite <- meta_alpha[is.finite(meta_alpha$X15SoilN), ]
+meta_alpha$SoilN <- as.numeric(meta_alpha$SoilN)
+ma_finite <- meta_alpha[is.finite(meta_alpha$SoilN), ]
 L <- names(NMDS1) %in% ma_finite$Code 
 NMDS1 <- NMDS1[L]
 NMDS2 <- NMDS2[L]
 
-reg_n <- lm(ma_finite$X15SoilN ~ NMDS1 * NMDS2)
+reg_n <- lm(ma_finite$SoilN ~ NMDS1 * NMDS2)
 reg_n
 summary(reg_n)
 
@@ -1581,7 +2754,7 @@ par(mar = c( 5, 5, 0, 0 ))
 plot.window(xlim = c(0,3), ylim = c(-1.5,1.5))
 axis(side = 1)
 axis(side = 2, las = 1)
-points(x = ma_finite$X15SoilN, y = NMDS1, pch = pchs[as.character(ma_finite$Lineage)], 
+points(x = ma_finite$SoilN, y = NMDS1, pch = pchs[as.character(ma_finite$Lineage)], 
       bg = clrs[as.character(ma_finite$Site)], cex = 1)
 
 mtext(side = 1, line = 2, text = "Percent N")
@@ -1685,15 +2858,15 @@ par(mar = c( 5, 5, 0.5, 8 ))
 plot.window(xlim = c(-1,1), ylim = c(-1,1))
 axis(side = 1)
 axis(side = 2, las = 1)
-points(x = NMDS_scores$NMDS1, y = NMDS_scores$NMDS2, pch = 16, 
+points(NMDS, "sites", pch = 16, 
       col = clrs[as.character(meta_alpha$Sat_lev)], cex = 1.5)
 
 mtext(side = 1, line = 2, text = "NMDS1")
 mtext(side = 2, line = 3, text = "NMDS2" )
 
-ordiellipse(NMDS, meta_alpha$Sat_lev == "UN", show.groups = TRUE, kind = "sd", col = "black", lty = 1, lwd = 2.0)
-ordiellipse(NMDS, meta_alpha$Sat_lev == "SAT", show.groups = TRUE, kind = "sd", col = "dark green", lty = 1, lwd = 2.0)
-ordiellipse(NMDS, meta_alpha$Sat_lev == "SAT_HI", show.groups = TRUE, kind = "sd", col = "blue", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Sat_lev == "UN", show.groups = TRUE, kind = "se", conf = 0.95, col = "black", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Sat_lev == "SAT", show.groups = TRUE, kind = "se", conf = 0.95, col = "dark green", lty = 1, lwd = 2.0)
+ordiellipse(NMDS, meta_alpha$Sat_lev == "SAT_HI", show.groups = TRUE, kind = "se", conf = 0.95, col = "blue", lty = 1, lwd = 2.0)
 
 legend_text <- c("Unsaturated", "Saturated", "Standing Water")
 legend(1.08,1.08, legend_text, pch = 16, 
