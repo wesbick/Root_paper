@@ -1,4 +1,4 @@
-# Root endophytes and invasiveness: no difference between native and non-native Phragmites in the Great Lakes Region
+# Root endophytes and invasiveness: no difference between native and non-native <i>Phragmites</i> in the Great Lakes Region
 Wesley A. Bickford, Deborah E. Goldberg, Kurt P. Kowalski, and Donald R. Zak
 
 Submitted to Ecosphere
