@@ -9,7 +9,7 @@ Information about this repository
 
 Sequencing Data
 
-Sequencing was done at the University of Michigan Sequencing Core using a PacBio-RS II system. FASTQ files were submitted to the NCBI Sequence Read Archive under BioProject PRJNA490140 with SRA accession numbers SRR7814066 - SRR7814074.
+Sequencing was done at the University of Michigan Sequencing Core using a PacBio-RS II system. FASTQ files were submitted to the NCBI Sequence Read Archive under BioProject PRJNA490140 with SRA accession number SRP160913.
 
 Directories:
 
