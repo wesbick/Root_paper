@@ -15,8 +15,12 @@ Sequencing was done at the University of Michigan Sequencing Core using a PacBio
 
 Directories:
 
+Full_Analyses: contains and Rmarkdown document for all statistics run for the manuscript and the environmental file used for PERMANOVA in PRIMER-E with PerMANOVA+
+
+Raw_Data: contains all raw data files needed to run analyses (wih the exception of sequence data available in SRA)
+
 MOTHUR: contains all files necessary to run MOTHUR, including the batch file, oligos files and taxa related files.
 
-R code: contains and Rmarkdown document for all statistics run for the manuscript and the environmental file used for PERMANOVA in PRIMER-E with PerMANOVA+
+blastn: Contains batch file for running blastn analysis with custom oomycete database
 
-Raw Data: contains all raw data files needed to run analyses (wih the exception of sequence data available in SRA)
+
