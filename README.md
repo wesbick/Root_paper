@@ -17,6 +17,7 @@ Access original fastq files here: https://www.ncbi.nlm.nih.gov/sra/?term=SRP1609
 
 Directories:
 
+```
 |- README
 |- Full_Analyses.Rmd    # Rmarkdown document for all statistics run for the manuscript and Appendix A
 |- MOTHUR/              # All files necessary to run MOTHUR including the batch file, oligos files and taxa related files
@@ -36,5 +37,5 @@ Directories:
 | |- code/              # any programmatic code
 | |- data/              # raw and primary data, are not changed once created
 | |- Root_Oom.Rmd       # executable Rmarkdown for the oomycete portion of the study
-|- Exploratory          # exploratory anayses not included in manuscript
-
+|- Exploratory/         # exploratory anayses not included in manuscript
+```
