@@ -9,18 +9,32 @@ This repository is associated with the manuscript "Root endophytes and invasiven
 
 Information about this repository
 
-Sequencing Data
+#Sequence Data
 
 Sequencing was done at the University of Michigan Sequencing Core using a PacBio-RS II system. FASTQ files were submitted to the NCBI Sequence Read Archive under BioProject PRJNA490140 with SRA accession number SRP160913.
 
+Access original fastq files here: https://www.ncbi.nlm.nih.gov/sra/?term=SRP160913
+
 Directories:
 
-Full_Analyses: contains and Rmarkdown document for all statistics run for the manuscript and the environmental file used for PERMANOVA in PRIMER-E with PerMANOVA+
-
-Raw_Data: contains all raw data files needed to run analyses (wih the exception of sequence data available in SRA)
-
-MOTHUR: contains all files necessary to run MOTHUR, including the batch file, oligos files and taxa related files.
-
-blastn: Contains batch file for running blastn analysis with custom oomycete database
-
+|- README
+|- Full_Analyses.Rmd    # Rmarkdown document for all statistics run for the manuscript and Appendix A
+|- MOTHUR/              # All files necessary to run MOTHUR including the batch file, oligos files and taxa related files
+| |- Fungi/
+| |- Bacteria/
+| |- Oomycetes/
+| | |- BLAST/           # Batch file for running blastn analysis with custom oomycete database
+|- bacteria/             
+| |- code/              # any programmatic code
+| |- data/              # raw and primary data, are not changed once created
+| |- Root_Bacteria.Rmd  # executable Rmarkdown for the bacterial portion of the study
+|- ITS/
+| |- code/              # any programmatic code
+| |- data/              # raw and primary data, are not changed once created
+| |- Root_Fungi.Rmd     # executable Rmarkdown for the fungal portion of the study
+|- Oom/
+| |- code/              # any programmatic code
+| |- data/              # raw and primary data, are not changed once created
+| |- Root_Oom.Rmd       # executable Rmarkdown for the oomycete portion of the study
+|- Exploratory          # exploratory anayses not included in manuscript
 
