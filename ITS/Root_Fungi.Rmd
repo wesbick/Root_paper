@@ -693,6 +693,8 @@ Kruskal-Wallace test confirms that colonization in North and South are significa
 These are rarefaction curves for all samples. Samples were rarefied to 200 sequences as that was the lowest number at any site. 
 
 ```{r Rarefaction plot, echo = F, include = T}
+meta_alpha$Site <- as.factor(meta_alpha$Site)
+
 rarefy <- read.table(file = "data/Bickford.groups.rarefaction", header=T, stringsAsFactors=F)
 
 ave_columns <- grep(pattern = "X1", colnames(rarefy))
@@ -703,7 +705,7 @@ numsampled <- rarefy$numsampled
 sample_IDs <- gsub(pattern = "X1.", replacement = "", x=colnames(ave_rarefy))
 colnames(ave_rarefy) <- sample_IDs
 
-clrs <- c(BL = "grey", CB = "blue", CH = "red", CM = "coral", CR = "black", PLB = "orange", Rt2 = "green", SB = "purple")
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "brown", Rt2 = "dark gray", SB = "purple")
 
 
 plot(NA, type = "l",
@@ -719,6 +721,18 @@ for(i in sample_IDs){
        )
 }
 abline(v=200)
+
+```
+
+```{r goods coverage plots1, echo = F, include = T}
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "brown", Rt2 = "dark gray", SB = "purple")
+
+boxplot(coverage ~ Site, data = meta_alpha,
+        ylab = "Good's Coverage",
+        ylim = c(0.7,1), col = clrs[levels(meta_alpha$Site)],
+        names = unique(meta_alpha$Site),
+        range = 0)
+
 
 ```
 
@@ -1544,9 +1558,35 @@ I ran my taxonomy data through the FUNGuild database to get functional guilds fo
 
 #### Trophic Mode
 
+
+
 ```{r funguild setup, echo = F, include = F}
 
 guilds <- read.table("data/for_funguild.guilds_matched.txt", header = T, sep = "\t", stringsAsFactors = F)
+
+matched_otus <- guilds$OTU
+
+unmatched <- read.table("data/for_funguild.guilds_unmatched.txt", header = T, sep = "\t", stringsAsFactors = F)
+
+unmatched_otus <- unmatched$OTU
+
+unmatched_shared <- shared[ , unmatched_otus]
+matched_shared <- shared[ , matched_otus]
+
+un_seqs <- apply(unmatched_shared, 1, sum)
+matched_seqs <- apply(matched_shared, 1, sum)
+
+matched_v_un <- data.frame("matched" = matched_seqs, "unmatched" = un_seqs)
+
+matching_rel_abund <- matched_v_un / 200
+
+fg_av_ra <- apply(matching_rel_abund, 2, mean)
+fg_sd_ra <- apply(matching_rel_abund, 2, sd)
+fg_se_ra <- fg_sd_ra/sqrt(nrow(matching_rel_abund))
+
+lin_rel_average <- data.frame(Native = nat_av_ra, NonNative = non_av_ra)
+
+
 
 #make metadata file for guilds
 guild_data <- guilds[ , -c(2:48)]
@@ -2011,8 +2051,8 @@ summary(reginv.p1.2)
 p1.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_col$SoilP, y = meta_col$per_col, pch = pchs[as.character(meta_col$Lineage.x)], xlab = "Soil P", ylab = "Percent Colonization", las = 1)
-  abline(regnat.p1.2, lty = 2)
-  abline(reginv.p1.2)
+  # abline(regnat.p1.2, lty = 2)
+  # abline(reginv.p1.2)
 #  legend("topleft", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2026,8 +2066,8 @@ summary(reginv.p1.3)
 p1.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_col$SoilN, y = meta_col$per_col, pch = pchs[as.character(meta_col$Lineage.x)], xlab = "Soil N", ylab = "Percent Colonization", las = 1)
-  abline(regnat.p1.3, lty = 2)
-  abline(reginv.p1.3)
+  # abline(regnat.p1.3, lty = 2)
+  # abline(reginv.p1.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2058,8 +2098,8 @@ summary(reginv.p2.2)
 p2.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = meta_alpha$npshannon, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Shannon Diversity", las = 1)
-  abline(regnat.p2.2, lty = 2)
-  abline(reginv.p2.2)
+  # abline(regnat.p2.2, lty = 2)
+  # abline(reginv.p2.2)
  # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2074,8 +2114,8 @@ summary(reginv.p2.3)
 p2.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = meta_alpha$npshannon, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Shannon Diversity", las = 1)
-  abline(regnat.p2.3, lty = 2)
-  abline(reginv.p2.3)
+  # abline(regnat.p2.3, lty = 2)
+  # abline(reginv.p2.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2106,8 +2146,8 @@ summary(reginv.p3.2)
 p3.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = meta_alpha$chao, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Chao Richness", las = 1)
-  abline(regnat.p3.2, lty = 2)
-  abline(reginv.p3.2)
+  # abline(regnat.p3.2, lty = 2)
+  # abline(reginv.p3.2)
  # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2122,8 +2162,8 @@ summary(reginv.p3.3)
 p3.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = meta_alpha$chao, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Chao Richness", las = 1)
-  abline(regnat.p3.3, lty = 2)
-  abline(reginv.p3.3)
+  # abline(regnat.p3.3, lty = 2)
+  # abline(reginv.p3.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2138,8 +2178,8 @@ summary(reginv.p4.1)
 p4.1 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$Sat, y = meta_alpha$sobs, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "Fungal Species Observed", las = 1)
-  abline(regnat.p4.1, lty = 2)
-  abline(reginv.p4.1)
+  # abline(regnat.p4.1, lty = 2)
+  # abline(reginv.p4.1)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2154,8 +2194,8 @@ summary(reginv.p4.2)
 p4.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = meta_alpha$sobs, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Fungal Species Observed", las = 1)
-  abline(regnat.p4.2, lty = 2)
-  abline(reginv.p4.2)
+  # abline(regnat.p4.2, lty = 2)
+  # abline(reginv.p4.2)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2170,8 +2210,8 @@ summary(reginv.p4.3)
 p4.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = meta_alpha$sobs, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Fungal Species Observed", las = 1)
-  abline(regnat.p4.3, lty = 2)
-  abline(reginv.p4.3)
+  # abline(regnat.p4.3, lty = 2)
+  # abline(reginv.p4.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2204,8 +2244,8 @@ summary(reginv.p5.2)
 p5.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = a1pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "PCoA Axis 1", las = 1)
-  abline(regnat.p5.2, lty = 2)
-  abline(reginv.p5.2)
+  # abline(regnat.p5.2, lty = 2)
+  # abline(reginv.p5.2)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2220,8 +2260,8 @@ summary(reginv.p5.3)
 p5.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = a1pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "PCoA Axis 1", las = 1)
-  abline(regnat.p5.3, lty = 2)
-  abline(reginv.p5.3)
+  # abline(regnat.p5.3, lty = 2)
+  # abline(reginv.p5.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2238,8 +2278,8 @@ summary(reginv.p6.1)
 p6.1 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$Sat, y = a2pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "PCoA Axis 2", las = 1)
-  abline(regnat.p6.1, lty = 2)
-  abline(reginv.p6.1)
+  # abline(regnat.p6.1, lty = 2)
+  # abline(reginv.p6.1)
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2254,9 +2294,9 @@ summary(reginv.p6.2)
 p6.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = a2pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "PCoA Axis 2", las = 1)
-  abline(regnat.p6.2, lty = 2)
-  abline(reginv.p6.2)
- # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+ #  abline(regnat.p6.2, lty = 2)
+ #  abline(reginv.p6.2)
+ # # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
 #PCoA Scores (Axis 2) vs N
@@ -2270,8 +2310,8 @@ summary(reginv.p6.3)
 p6.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = a2pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "PCoA Axis 2", las = 1)
-  abline(regnat.p6.3, lty = 2)
-  abline(reginv.p6.3)
+  # abline(regnat.p6.3, lty = 2)
+  # abline(reginv.p6.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2286,8 +2326,8 @@ summary(reginv.p7.1)
 p7.1 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_top_phyla$Sat, y = meta_top_phyla$Ascomycota, pch = pchs[as.character(meta_top_phyla$Lineage)], xlab = "Soil Saturation", ylab = "Ascomycota Relative Abundance", las = 1)
-  abline(regnat.p7.1, lty = 2)
-  abline(reginv.p7.1)
+  # abline(regnat.p7.1, lty = 2)
+  # abline(reginv.p7.1)
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2302,8 +2342,8 @@ summary(reginv.p7.2)
 p7.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_top_phyla$SoilP, y = meta_top_phyla$Ascomycota, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Ascomycota Relative Abundance", las = 1)
-  abline(regnat.p7.2, lty = 2)
-  abline(reginv.p7.2)
+  # abline(regnat.p7.2, lty = 2)
+  # abline(reginv.p7.2)
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2318,8 +2358,8 @@ summary(reginv.p7.3)
 p7.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_top_phyla$SoilN, y = meta_top_phyla$Ascomycota, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Ascomycota Relative Abundance", las = 1)
-  abline(regnat.p7.3, lty = 2)
-  abline(reginv.p7.3)
+  # abline(regnat.p7.3, lty = 2)
+  # abline(reginv.p7.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2350,8 +2390,8 @@ summary(reginv.p8.2)
 p8.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = meta_trophic$Pathotroph, pch = pchs[as.character(meta_trophic$Lineage)], xlab = "Soil P", ylab = "Pathotroph Relative Abundance", las = 1)
-  abline(regnat.p8.2, lty = 2)
-  abline(reginv.p8.2)
+  # abline(regnat.p8.2, lty = 2)
+  # abline(reginv.p8.2)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2366,8 +2406,8 @@ summary(reginv.p8.3)
 p8.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = meta_trophic$Pathotroph, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Pathotroph Relative Abundance", las = 1)
-  abline(regnat.p8.3, lty = 2)
-  abline(reginv.p8.3)
+  # abline(regnat.p8.3, lty = 2)
+  # abline(reginv.p8.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2397,8 +2437,8 @@ summary(reginv.p9.2)
 p9.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = meta_trophic$Pathotroph, pch = pchs[as.character(meta_trophic$Lineage)], xlab = "Soil P", ylab = "Saprotroph Relative Abundance", las = 1)
-  abline(regnat.p9.2, lty = 2)
-  abline(reginv.p9.2)
+  # abline(regnat.p9.2, lty = 2)
+  # abline(reginv.p9.2)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2413,8 +2453,8 @@ summary(reginv.p9.3)
 p9.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = meta_trophic$Saprotroph, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Saprotroph Relative Abundance", las = 1)
-  abline(regnat.p9.3, lty = 2)
-  abline(reginv.p9.3)
+  # abline(regnat.p9.3, lty = 2)
+  # abline(reginv.p9.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2445,8 +2485,8 @@ summary(reginv.p10.2)
 p10.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_top_genus$SoilP, y = meta_top_genus$Gibberella, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Gibberella Relative Abundance", las = 1)
-  abline(regnat.p10.2, lty = 2)
-  abline(reginv.p10.2)
+  # abline(regnat.p10.2, lty = 2)
+  # abline(reginv.p10.2)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2461,8 +2501,8 @@ summary(reginv.p10.3)
 p10.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = meta_top_genus$Gibberella, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Gibberella Relative Abundance", las = 1)
-  abline(regnat.p10.3, lty = 2)
-  abline(reginv.p10.3)
+  # abline(regnat.p10.3, lty = 2)
+  # abline(reginv.p10.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2493,8 +2533,8 @@ summary(reginv.p11.2)
 p11.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_top_genus$SoilP, y = meta_top_genus$Stagonospora, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Stagonospora Relative Abundance", las = 1)
-  abline(regnat.p11.2, lty = 2)
-  abline(reginv.p11.2)
+  # abline(regnat.p11.2, lty = 2)
+  # abline(reginv.p11.2)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -2509,8 +2549,8 @@ summary(reginv.p11.3)
 p11.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = meta_top_genus$Stagonospora, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Stagonospora Relative Abundance", las = 1)
-  abline(regnat.p11.3, lty = 2)
-  abline(reginv.p11.3)
+  # abline(regnat.p11.3, lty = 2)
+  # abline(reginv.p11.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
