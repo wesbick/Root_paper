@@ -29,7 +29,7 @@ numsampled <- rarefy$numsampled
 
 colnames(ave_rarefy) <- sample_id
 
-clrs <- c(BL = "grey", CB = "blue", CH = "red", CM = "coral", CR = "black", PLB = "orange", Rt2 = "green", SB = "purple")
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "brown", Rt2 = "dark gray", SB = "purple")
 
 
 ```
@@ -42,8 +42,8 @@ These are rarefaction curves for all samples. Samples were rarefied to 483 seque
 plot(NA, type = "l",
      xlab = "Number of Sequences Sampled",
      ylab = "Number of OTUs Observed",
-     ylim = c(0,75),
-     xlim = c(0,1500)
+     ylim = c(0,90),
+     xlim = c(0,3000)
      )
 for(i in sample_id){
       points(ave_rarefy[ ,i] ~ numsampled, type= "l",
@@ -52,7 +52,6 @@ for(i in sample_id){
        )
 }
 abline(v=459)
-abline(v=168)
 
 ```
 
@@ -66,6 +65,20 @@ alpha_mean$group <- as.character(alpha_mean$group)
 meta_alpha <- inner_join(metadata, alpha_mean, by = c("Code"="group"))
 
 meta_alpha$Lineage <- as.factor(meta_alpha$Lineage)
+meta_alpha$Site <- as.factor(meta_alpha$Site)
+
+```
+
+```{r goods coverage plots1, echo = F, include = T}
+clrs <- c(BL = "blue", CB = "red", CH = "dark green", CM = "coral", CR = "black", PLB = "brown", Rt2 = "dark gray", SB = "purple")
+
+boxplot(coverage ~ Site, data = meta_alpha,
+        ylab = "Good's Coverage",
+        ylim = c(0.9,1), col = clrs[levels(meta_alpha$Site)],
+        names = unique(meta_alpha$Site),
+        range = 0)
+
+
 ```
 
 The following shows shannon diversity by lineage
@@ -975,9 +988,9 @@ summary(reginv.p2.1)
 p2.1 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$Sat, y = meta_alpha$npshannon, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "Shannon Diversity", las = 1)
-  abline(regnat.p2.1, lty = 2)
-  abline(reginv.p2.1)
- # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
+ #  abline(regnat.p2.1, lty = 2)
+ #  abline(reginv.p2.1)
+ # # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
 #Shannon vs P
@@ -991,8 +1004,8 @@ summary(reginv.p2.2)
 p2.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = meta_alpha$npshannon, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Shannon Diversity", las = 1)
-  abline(regnat.p2.2, lty = 2)
-  abline(reginv.p2.2)
+  # abline(regnat.p2.2, lty = 2)
+  # abline(reginv.p2.2)
  # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1007,8 +1020,8 @@ summary(reginv.p2.3)
 p2.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = meta_alpha$npshannon, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Shannon Diversity", las = 1)
-  abline(regnat.p2.3, lty = 2)
-  abline(reginv.p2.3)
+  # abline(regnat.p2.3, lty = 2)
+  # abline(reginv.p2.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1023,8 +1036,8 @@ summary(reginv.p3.1)
 p3.1 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$Sat, y = meta_alpha$chao, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "Chao Richness", las = 1)
-  abline(regnat.p3.1, lty = 2)
-  abline(reginv.p3.1)
+  # abline(regnat.p3.1, lty = 2)
+  # abline(reginv.p3.1)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1055,8 +1068,8 @@ summary(reginv.p3.3)
 p3.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = meta_alpha$chao, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Chao Richness", las = 1)
-  abline(regnat.p3.3, lty = 2)
-  abline(reginv.p3.3)
+  # abline(regnat.p3.3, lty = 2)
+  # abline(reginv.p3.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1071,8 +1084,8 @@ summary(reginv.p4.1)
 p4.1 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$Sat, y = meta_alpha$sobs, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "Oomycete Species Observed", las = 1)
-  abline(regnat.p4.1, lty = 2)
-  abline(reginv.p4.1)
+  # abline(regnat.p4.1, lty = 2)
+  # abline(reginv.p4.1)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1087,8 +1100,8 @@ summary(reginv.p4.2)
 p4.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = meta_alpha$sobs, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "Oomycete Species Observed", las = 1)
-  abline(regnat.p4.2, lty = 2)
-  abline(reginv.p4.2)
+  # abline(regnat.p4.2, lty = 2)
+  # abline(reginv.p4.2)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1103,8 +1116,8 @@ summary(reginv.p4.3)
 p4.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = meta_alpha$sobs, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "Oomycete Species Observed", las = 1)
-  abline(regnat.p4.3, lty = 2)
-  abline(reginv.p4.3)
+  # abline(regnat.p4.3, lty = 2)
+  # abline(reginv.p4.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1137,8 +1150,8 @@ summary(reginv.p5.2)
 p5.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = a1pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "PCoA Axis 1", las = 1)
-  abline(regnat.p5.2, lty = 2)
-  abline(reginv.p5.2)
+  # abline(regnat.p5.2, lty = 2)
+  # abline(reginv.p5.2)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1153,8 +1166,8 @@ summary(reginv.p5.3)
 p5.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = a1pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "PCoA Axis 1", las = 1)
-  abline(regnat.p5.3, lty = 2)
-  abline(reginv.p5.3)
+  # abline(regnat.p5.3, lty = 2)
+  # abline(reginv.p5.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1171,8 +1184,8 @@ summary(reginv.p6.1)
 p6.1 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$Sat, y = a2pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil Saturation", ylab = "PCoA Axis 2", las = 1)
-  abline(regnat.p6.1, lty = 2)
-  abline(reginv.p6.1)
+  # abline(regnat.p6.1, lty = 2)
+  # abline(reginv.p6.1)
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1187,8 +1200,8 @@ summary(reginv.p6.2)
 p6.2 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilP, y = a2pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil P", ylab = "PCoA Axis 2", las = 1)
-  abline(regnat.p6.2, lty = 2)
-  abline(reginv.p6.2)
+  # abline(regnat.p6.2, lty = 2)
+  # abline(reginv.p6.2)
  # legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
@@ -1203,8 +1216,8 @@ summary(reginv.p6.3)
 p6.3 %<a-% {
   pchs <- c(Nat = 1, Inv = 16)
   plot(x = meta_alpha$SoilN, y = a2pts, pch = pchs[as.character(meta_alpha$Lineage)], xlab = "Soil N", ylab = "PCoA Axis 2", las = 1)
-  abline(regnat.p6.3, lty = 2)
-  abline(reginv.p6.3)
+  # abline(regnat.p6.3, lty = 2)
+  # abline(reginv.p6.3)
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 ```
@@ -1263,5 +1276,13 @@ results <- lm(a2pts ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_
 summary(results)
 ancova2 <- anova(results)
 ancova2
+
+```
+
+```{r simper, include = T, echo = F}
+simp <- simper(shared, meta_alpha$Lineage)
+simpsum <- summary(simp, ordered = T)
+top50 <- simpsum$Inv_Nat[c(1:50), ]
+top50
 
 ```
