@@ -1,0 +1,121 @@
+#MOTHUR pipeline for Wes Bickford bacterial 16s gene
+#Pipeline by Wes Bickford modified: April 2017
+#
+#Step 1: Download fastq files from the SRA
+#
+#Start mothur
+#
+#Step 2: Extract fasta and qual files from the fastq output from raw sequencing data
+set.dir(input=~/Desktop/Root_Bac, output=~/Desktop/Root_Bac, tempdefault=~/Desktop/Root_Bac/mothur.reference)
+fastq.info(fastq=Bac1of3.fastq, fasta=t, qfile=t, pacbio=t)
+fastq.info(fastq=Bac2of3.fastq, fasta=t, qfile=t, pacbio=t)
+fastq.info(fastq=Bac3of3.fastq, fasta=t, qfile=t, pacbio=t)
+
+#
+#Step 3: Splitting the fasta file by barcode (oligos file) and removing low quality sequences
+trim.seqs(fasta=Bac1of3.fasta, oligos=Bac1of3.oligos, qfile=Bac1of3.qual, checkorient=t, qwindowaverage=25, qwindowsize=50, maxambig=1, maxhomop=8, bdiffs=1, pdiffs=1, processors=8)
+trim.seqs(fasta=Bac2of3.fasta, oligos=chip1203.oligos, qfile=1203_CCS.qual, checkorient=t, qwindowaverage=25, qwindowsize=50, maxambig=1, maxhomop=8, bdiffs=1, pdiffs=1, processors=8)
+trim.seqs(fasta=1157_CCS.fasta, oligos=chip1157.oligos, qfile=1157_CCS.qual, checkorient=t, qwindowaverage=25, qwindowsize=50, maxambig=1, maxhomop=8, bdiffs=1, pdiffs=1, processors=8)
+
+#
+#Step 4: Merge all of the files to create one fasta, qual, and groups files for analysis
+merge.files(input=1148_CCS.trim.fasta-1157_CCS.trim.fasta-1203_CCS.trim.fasta, output=combined.trim.fasta)
+merge.files(input=1148_CCS.trim.qual-1157_CCS.trim.qual-1203_CCS.trim.qual, output=combined.trim.qual)
+merge.files(input=1148_CCS.groups-1157_CCS.groups-1203_CCS.groups, output=combined.trim.groups)
+#
+#Step 5: Summarize initial sequences and groups
+count.groups(group=combined.trim.groups)
+summary.seqs(fasta=combined.trim.fasta, processors=8)
+#
+#Step 6: Screen sequences to trim out erroneous sequences (trim out sequences you know to be longer than the amplicon length)
+screen.seqs(fasta=combined.trim.fasta, group=combined.trim.groups, optimize = maxlength, maxambig=1, processors=8)
+summary.seqs(fasta=combined.trim.good.fasta, processors=8)
+#
+#Step 7: Reduce duplication of sequences in your dataset by keeping only unique sequences
+unique.seqs(fasta=combined.trim.good.fasta)
+#
+#Step 8: Make count table where rows are the names of unique sequences and columns are the names of the groups
+count.seqs(name=combined.trim.good.names, group=combined.trim.good.groups)
+summary.seqs(fasta=combined.trim.good.unique.fasta, count=combined.trim.good.count_table, processors=8)
+#
+#Alignment
+#---------------------------------
+#
+#Step 1: Align your sequences to the Silva reference alignment
+align.seqs(fasta=combined.trim.good.unique.fasta, template=~/Desktop/Root_Bac/mothur_reference/silva.nr_v128.align, flip=t, processors=8)
+summary.seqs(fasta=combined.trim.good.unique.align, count=combined.trim.good.count_table, processors=8)
+#
+#Step 2: Re-screen sequences to narrow down dataset based on previous summary.seqs output
+screen.seqs(fasta=combined.trim.good.unique.align, count=combined.trim.good.count_table, summary=combined.trim.good.unique.summary, start=1046, end=13871, maxhomop=8, processors=8)
+summary.seqs(fasta=combined.trim.good.unique.good.align, count=combined.trim.good.good.count_table, processors=8)
+#
+#Step 3: Filter sequences to remove the overhangs at each end
+filter.seqs(fasta=combined.trim.good.unique.good.align, vertical=T, processors=8)
+#filter.seqs(fasta=combined.trim.good.unique.good.align, vertical=T, trump=., processors=8)
+#
+#Step 4: Reduce redundancy again (some new redundancies could have been created by trimming)
+unique.seqs(fasta=combined.trim.good.unique.good.filter.fasta, count=combined.trim.good.good.count_table)
+#
+#Step 5: Further de-noise sequences by pre-clustering and allowing up to 2 differences between sequences
+pre.cluster(fasta=combined.trim.good.unique.good.filter.unique.fasta, count=combined.trim.good.unique.good.filter.count_table, diffs=2, processors=8)
+#
+#---------------REMOVE CHIMERAS
+#Step 9: Remove chimeras since we've now removed as much sequencing error as possible.
+chimera.vsearch(fasta=combined.trim.good.unique.good.filter.unique.precluster.fasta, count=combined.trim.good.unique.good.filter.unique.precluster.count_table, dereplicate=T, processors=8)
+remove.seqs(fasta=combined.trim.good.unique.good.filter.unique.precluster.fasta, accnos=combined.trim.good.unique.good.filter.unique.precluster.denovo.vsearch.accnos)
+summary.seqs(fasta=combined.trim.good.unique.good.filter.unique.precluster.pick.fasta, count=combined.trim.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.count_table, processors=8)
+#
+#Step: : Remove unwanted lineages
+classify.seqs(fasta=combined.trim.good.unique.good.filter.unique.precluster.pick.fasta, count=combined.trim.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.count_table, reference=~/Desktop/Root_Bac/mothur_reference/silva.nr_v128.align, taxonomy=~/Desktop/Root_Bac/mothur_reference/silva.nr_v128.tax, cutoff=80)
+remove.lineage(fasta=combined.trim.good.unique.good.filter.unique.precluster.pick.fasta, count=combined.trim.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.count_table, taxonomy=combined.trim.good.unique.good.filter.unique.precluster.pick.nr_v128.wang.taxonomy, taxon=Chloroplast-Mitochondria-unknown-Archaea-Eukaryota)
+summary.tax(taxonomy=combined.trim.good.unique.good.filter.unique.precluster.pick.nr_v128.wang.pick.taxonomy, count=combined.trim.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table)
+#
+#Step 5: Cluster sequences into OTUs
+dist.seqs(fasta=combined.trim.good.unique.good.filter.unique.precluster.pick.pick.fasta, cutoff=0.20)
+cluster(column=combined.trim.good.unique.good.filter.unique.precluster.pick.pick.dist, count=combined.trim.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table)
+make.shared(list=combined.trim.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.list, count=combined.trim.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table, label=0.03)
+rarefaction.single(shared=combined.trim.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.shared)
+#
+#Step 6: Determine how many sequences are in each OTU from each group
+#make.shared(list=c.g.DNA.28S.combined.trim.good.unique.good.filter.precluster.pick.pick.an.unique_list.list, count=c.g.DNA.28S.combined.trim.good.unique.good.filter.precluster.denovo.uchime.pick.pick.count_table, label=0.03)
+#
+#Step 7: Get consensus taxonomy for each OTU
+classify.otu(list=combined.trim.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.list, count=combined.trim.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table, taxonomy=combined.trim.good.unique.good.filter.unique.precluster.pick.nr_v128.wang.pick.taxonomy, label=0.03)
+#
+#---------------------------------
+#RENAME FILES
+rename.file(count=combined.trim.good.unique.good.filter.unique.precluster.denovo.vsearch.pick.pick.count_table, shared=combined.trim.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.shared, constaxonomy=combined.trim.good.unique.good.filter.unique.precluster.pick.pick.opti_mcc.0.03.cons.taxonomy)
+#
+#Step 14: See how many sequences we have in each sample
+count.groups(shared=combined.opti_mcc.shared)
+#
+#Step 15a: Subsample dataset to the sample with the smallest amount of sequences (671 sequences)
+sub.sample(shared=combined.opti_mcc.shared, size=483)
+#
+#Step 16: Generate rarefaction curves of the full dataset (not sub-sampled) describing the number of OTUs observed as a function of sampling effort
+#rarefaction.single(shared=combined.opti_mcc.shared, calc=sobs, freq=100)
+#
+#Step 17a: Generate sub-sampled table containing number of sequences, sample coverage, number of observed OTUs, Chao1 richness, and Shannon diversity
+summary.single(shared=combined.opti_mcc.shared, calc=nseqs-coverage-sobs-npshannon-chao, subsample=483)
+#
+#Remaining Mothur analyses for beta-diversity can now be generated. Always use sub-sampled data.
+#
+#Step 18a: Calculate community distances (Theta YC and Bray Curtis) of subsampled data (483 seqs)
+dist.shared(shared=combined.opti_mcc.shared, calc=thetayc-braycurtis, subsample=483)
+#
+#Step 19a: Run a permanova on communities using basic experimental design focus on site (483 seqs)
+# Rename before running the next command
+amova(phylip=combined.opti_mcc.thetayc.0.03.lt.ave.dist, design=~/Documents/Research/Sequencing/16s/Roots/phrag.exp.design)
+#
+#Step 19b: Run a permanova on communities using basic experimental design focus on lineage (200 seqs)
+# Rename before running the next command
+amova(phylip=combined.opti_mcc.thetayc.0.03.lt.ave.dist, design=~/Documents/Research/Sequencing/16s/Roots/phrag.lin.design)
+#
+# Create a tree  based on theta YC distances
+#
+#Run parsimony analysis to see if communities group based on lineage
+# Rename before running the next command
+parsimony(tree=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave.tre, group=~/Documents/Research/Sequencing/WesITS/Fungi/phrag.lin.design,  groups=all)
+#
+#Run parsimony analysis to see if communities group based on Site
+parsimony(tree=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave.tre, group=~/Documents/Research/Sequencing/WesITS/Fungi/phrag.exp.design,  groups=all)

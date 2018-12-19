@@ -1,0 +1,152 @@
+#MOTHUR pipeline for Wes Bickford bacterial 16s gene
+#Pipeline by Wes Bickford modified: April 2017
+#
+#Step 1: Convert .bam file to .fastq format using bedtools
+cd ~/Desktop/WesITS/Fungi/
+bedtools bamtofastq -i 1081_CCS_min10_passes5_accuracy98.bam -fq 1081_CCS_min10_passes5_accuracy98.fastq
+bedtools bamtofastq -i 1082_CCS_min10_passes5_accuracy98.bam -fq 1082_CCS_min10_passes5_accuracy98.fastq
+#
+#Start mothur
+#
+#Step 2: Extract fasta and qual files from the fastq output from raw sequencing data
+set.dir(input=~/Documents/Research/Sequencing/WesITS/Fungi/, output=~/Documents/Research/Sequencing/WesITS/Fungi/, tempdefault=~/Documents/Research/Sequencing/WesITS/mothur.reference)
+fastq.info(fastq=1081_CCS_min10_passes5_accuracy98.fastq, fasta=t, qfile=t, pacbio=t)
+fastq.info(fastq=1082_CCS_min10_passes5_accuracy98.fastq, fasta=t, qfile=t, pacbio=t)
+fastq.info(fastq=1107_CCS_min10_passes5_accuracy98.fastq, fasta=t, qfile=t, pacbio=t)
+
+#
+#Step 3: Splitting the fasta file by barcode (oligos file) and removing low quality sequences
+trim.seqs(fasta=1081_CCS_min10_passes5_accuracy98.fasta, oligos=chip1081_Chip2forw.oligos, qfile=1081_CCS_min10_passes5_accuracy98.qual, checkorient=t, qwindowaverage=25, qwindowsize=50, maxambig=1, maxhomop=8, bdiffs=1, pdiffs=1, processors=4)
+trim.seqs(fasta=1082_CCS_min10_passes5_accuracy98.fasta, oligos=chip1082_Chip1forw.oligos, qfile=1082_CCS_min10_passes5_accuracy98.qual, checkorient=t, qwindowaverage=25, qwindowsize=50, maxambig=1, maxhomop=8, bdiffs=1, pdiffs=1, processors=4)
+trim.seqs(fasta=1107_CCS_min10_passes5_accuracy98.fasta, oligos=chip1107_Chip3forw.oligos, qfile=1107_CCS_min10_passes5_accuracy98.qual, checkorient=t, qwindowaverage=25, qwindowsize=50, maxambig=1, maxhomop=8, bdiffs=1, pdiffs=1, processors=4)
+
+#
+#Step 4: Merge all of the files to create one fasta, qual, and groups files for analysis
+merge.files(input=1081_CCS_min10_passes5_accuracy98.trim.fasta-1082_CCS_min10_passes5_accuracy98.trim.fasta-1107_CCS_min10_passes5_accuracy98.trim.fasta, output=AllChips.combined.trim.fasta)
+merge.files(input=1081_CCS_min10_passes5_accuracy98.trim.qual-1082_CCS_min10_passes5_accuracy98.trim.qual-1107_CCS_min10_passes5_accuracy98.trim.qual, output=AllChips.combined.trim.qual)
+merge.files(input=1081_CCS_min10_passes5_accuracy98.groups-1082_CCS_min10_passes5_accuracy98.groups-1107_CCS_min10_passes5_accuracy98.groups, output=AllChips.combined.trim.groups)
+#
+#Step 5: Summarize initial sequences and groups
+count.groups(group=AllChips.combined.trim.groups)
+summary.seqs(fasta=AllChips.combined.trim.fasta, processors=8)
+#
+#Step 6: Screen sequences to trim out erroneous sequences (trim out sequences you know to be longer than the amplicon length)
+screen.seqs(fasta=AllChips.combined.trim.fasta, group=AllChips.combined.trim.groups, maxambig=0, maxlength=750, processors=8)
+summary.seqs(fasta=AllChips.combined.trim.good.fasta, processors=8)
+#
+#Step 7: Reduce duplication of sequences in your dataset by keeping only unique sequences
+unique.seqs(fasta=AllChips.combined.trim.good.fasta)
+#
+#Step 8: Make count table where rows are the names of unique sequences and columns are the names of the groups
+count.seqs(name=AllChips.combined.trim.good.names, group=AllChips.combined.trim.good.groups)
+summary.seqs(fasta=AllChips.combined.trim.good.unique.fasta, count=AllChips.combined.trim.good.count_table, processors=8)
+#
+#
+#
+#
+#---------------------------------
+#
+#Step 1: Align your sequences to the Silva reference alignment
+#align.seqs(fasta=AllChips.combined.trim.good.unique.fasta, reference=~/Documents/Research/Sequencing/WesITS/mothur.reference/UNITEv6_sh_99_s.fasta, flip=t, processors=8)
+#summary.seqs(fasta=, count=, processors=8)
+#
+#Step 2: Filter sequences to remove the overhangs at each end
+#filter.seqs(fasta=c.g.DNA.28S.combined.trim.good.unique.good.align, vertical=T, processors=4)
+#
+#Step 3: Re-screen sequences to narrow down dataset based on previous summary.seqs output
+#screen.seqs(fasta=1081_CCS_min10_passes5_accuracy98.trim.good.unique.fasta, count=1081_CCS_min10_passes5_accuracy98.trim.good.count_table, summary=1081_CCS_min10_passes5_accuracy98.trim.good.unique.summary, start=1, end=599, maxhomop=8, processors=4)
+#summary.seqs(fasta=1081_CCS_min10_passes5_accuracy98.trim.good.unique.good.fasta, count=1081_CCS_min10_passes5_accuracy98.trim.good.good.count_table, processors=4)
+#
+#The following steps continue without an alignment-----------------
+#Step 4: Further de-noise sequences by pre-clustering and allowing up to 2 differences between sequences
+#pre.cluster(fasta=1081_CCS_min10_passes5_accuracy98.trim.good.unique.fasta, count=1081_CCS_min10_passes5_accuracy98.trim.good.count_table, diffs=2, processors=4)
+#
+#Step 5: Cluster sequences into OTUs
+#cluster.split(fasta=c.g.DNA.28S.combined.trim.good.unique.good.filter.precluster.pick.pick.fasta, count=c.g.DNA.28S.combined.trim.good.unique.good.filter.precluster.denovo.uchime.pick.pick.count_table, taxonomy=c.g.DNA.28S.combined.trim.good.unique.good.filter.precluster.pick.FungiLSU_train_1400bp_8506_mod.wang.pick.taxonomy, splitmethod=classify, taxlevel=4, cutoff=0.2)
+#
+#Step 6: Determine how many sequences are in each OTU from each group
+#make.shared(list=c.g.DNA.28S.combined.trim.good.unique.good.filter.precluster.pick.pick.an.unique_list.list, count=c.g.DNA.28S.combined.trim.good.unique.good.filter.precluster.denovo.uchime.pick.pick.count_table, label=0.03)
+#
+#Step 7: Get consensus taxonomy for each OTU
+#classify.otu(list=c.g.DNA.28S.combined.trim.good.unique.good.filter.precluster.pick.pick.an.unique_list.list, count=c.g.DNA.28S.combined.trim.good.unique.good.filter.precluster.denovo.uchime.pick.pick.count_table, taxonomy=c.g.DNA.28S.combined.trim.good.unique.good.filter.precluster.pick.FungiLSU_train_1400bp_8506_mod.wang.pick.taxonomy, label=0.03)
+#
+#---------------------------------
+#
+#
+#
+#
+#Step 9: Remove chimeras since we've now removed as much sequencing error as possible.
+chimera.vsearch(fasta=AllChips.combined.trim.good.unique.fasta, count=AllChips.combined.trim.good.count_table, dereplicate=T, processors=8)
+remove.seqs(fasta=AllChips.combined.trim.good.unique.fasta, accnos=AllChips.combined.trim.good.unique.denovo.vsearch.accnos)
+summary.seqs(fasta=AllChips.combined.trim.good.unique.pick.fasta, count=AllChips.combined.trim.good.denovo.vsearch.pick.count_table, processors=8)
+#
+#Step 10: Classify the taxonomy of sequences so non-relevant sequences can be removed
+classify.seqs(fasta=AllChips.combined.trim.good.unique.pick.fasta, count=AllChips.combined.trim.good.denovo.vsearch.pick.count_table, reference=~/Documents/Research/Sequencing/WesITS/mothur.reference/UNITEv6_sh_99_s.fasta, taxonomy=~/Documents/Research/Sequencing/WesITS/mothur.reference/UNITEv6_sh_99_s.tax, cutoff=80, processors=8)
+remove.lineage(fasta=AllChips.combined.trim.good.unique.pick.fasta, count=AllChips.combined.trim.good.denovo.vsearch.pick.count_table, taxonomy=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.taxonomy, taxon=Mitochondria-Chloroplast-Archaea-Bacteria-unknown)
+summary.seqs(fasta=AllChips.combined.trim.good.unique.pick.pick.fasta, count=AllChips.combined.trim.good.denovo.vsearch.pick.pick.count_table, processors=8)
+#
+#Step 11: Bin sequences into phylotypes according to their taxonomic classification
+phylotype(taxonomy=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.taxonomy)
+#
+#Step 12: Assign OTUs at a specified taxonomic level (Level=1 (genus) - Level=6 (phylum))
+make.shared(list=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.list, count=AllChips.combined.trim.good.denovo.vsearch.pick.pick.count_table, label=1)
+#
+#Step 13: Assign taxonomy to OTUs based on phylotypes
+classify.otu(list=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.list, count=AllChips.combined.trim.good.denovo.vsearch.pick.pick.count_table, taxonomy=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.taxonomy, label=1)
+#
+#Step 14: See how many sequences we have in each sample
+count.groups(shared=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.shared)
+#
+#Step 15a: Subsample dataset to the sample with the smallest amount of sequences (200 sequences)
+sub.sample(shared=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.shared, size=200)
+#
+#Step 15b: Subsample dataset to the incorporate more sequences sequences (400 sequences)
+sub.sample(shared=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.shared, size=400)
+#
+#Step 16: Generate rarefaction curves of the full dataset (not sub-sampled) describing the number of OTUs observed as a function of sampling effort
+rarefaction.single(shared=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.shared, calc=sobs, freq=100)
+#
+#Step 17a: Generate sub-sampled table containing number of sequences, sample coverage, number of observed OTUs, Chao1 richness, and Shannon diversity
+summary.single(shared=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.shared, calc=nseqs-coverage-sobs-npshannon-chao, subsample=200)
+#
+#Step 17b: Generate sub-sampled table containing number of sequences, sample coverage, number of observed OTUs, Chao1 richness, and Shannon diversity
+summary.single(shared=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.shared, calc=nseqs-coverage-sobs-npshannon-chao, subsample=400)
+#
+#Remaining Mothur analyses for beta-diversity can now be generated. Always use sub-sampled data.
+#
+#Step 18a: Calculate community distances (Theta YC and Bray Curtis) of subsampled data (200 seqs)
+dist.shared(shared=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.shared, calc=thetayc-braycurtis, subsample=200)
+#
+#Step 18b: Calculate community distances (Theta YC and Bray Curtis) of subsampled data (400 seqs)
+dist.shared(shared=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.shared, calc=thetayc-braycurtis, subsample=400)
+#
+#Step 19a: Run a permanova on communities using basic experimental design focus on site (200 seqs)
+# Rename before running the next command
+amova(phylip=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave.dist, design=~/Documents/Research/Sequencing/WesITS/Fungi/phrag.exp.design)
+#
+#Step 19b: Run a permanova on communities using basic experimental design focus on lineage (200 seqs)
+# Rename before running the next command
+amova(phylip=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave.dist, design=~/Documents/Research/Sequencing/WesITS/Fungi/phrag.lin.design)
+#
+#Step 19c: Run a permanova on communities using basic experimental design focus on site (400 seqs)
+# Rename before running the next command
+amova(phylip=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave400.dist, design=~/Documents/Research/Sequencing/WesITS/Fungi/phrag.exp400.design)
+#
+#Step 19d: Run a permanova on communities using basic experimental design focus on lineage (400 seqs)
+amova(phylip=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave400.dist, design=~/Documents/Research/Sequencing/WesITS/Fungi/phrag.lin400.design)
+#
+# Create a tree  based on theta YC distances
+#
+#Run parsimony analysis to see if communities group based on lineage
+# Rename before running the next command
+parsimony(tree=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave.tre, group=~/Documents/Research/Sequencing/WesITS/Fungi/phrag.lin.design,  groups=all)
+#
+#Run parsimony analysis to see if communities group based on Site
+parsimony(tree=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave.tre, group=~/Documents/Research/Sequencing/WesITS/Fungi/phrag.exp.design,  groups=all)
+#
+#Run Pcoa
+pcoa(phylip=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave.dist)
+#Run NMDS
+nmds(phylip=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave.dist)
+#Run NMDS in 3 dimensions
+nmds(phylip=AllChips.combined.trim.good.unique.pick.UNITEv6_sh_99_s.wang.pick.tx.thetayc.1.lt.ave.dist, mindim=3, maxdim=3)
