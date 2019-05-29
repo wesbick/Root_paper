@@ -2111,11 +2111,125 @@ anova <- Anova(results, type = "III")
 anova
 ```
 
+```{r Table S7: ANCOVAs, echo = F, include = T}
 
+#Shannon
+results <- lm(npshannon ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Chao
+results <- lm(chao ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Sobs
+results <- lm(sobs ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#PCoA Axis 1
+results <- lm(a1pts ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#PCoA Axis 2
+results <- lm(a2pts ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Proteo RA
+results <- lm(Proteobacteria ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_top_phyla)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#firmicutes RA
+results <- lm(Firmicutes ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_top_phyla)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Bact RA
+results <- lm(Bacteroidetes ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_top_phyla)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Act RA
+results <- lm(Actinobacteria ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = meta_top_phyla)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Pseudo
+results <- lm(topgenus_ra$Pseudomonas ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Flavo
+results <- lm(topgenus_ra$Flavobacterium ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Jantho
+results <- lm(topgenus_ra$Janthinobacterium ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Rhiz
+results <- lm(topgenus_ra$Rhizobium ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Dug
+results <- lm(topgenus_ra$Duganella ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Tric
+results <- lm(topgenus_ra$Trichococcus ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#Aeromonas
+results <- lm(topgenus_ra$Aeromonas ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+results <- lm(bbase$Aerobic ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#fac an RA
+results <- lm(bbase$Facultatively_Anaerobic ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+
+#anaerobe RA
+results <- lm(bbase$Anaerobic ~  Lineage + Lineage:Sat + Sat + SoilP + SoilN, data = bac_meta_alpha)
+summary(results)
+ancova2 <- anova(results)
+ancova2
+```
 
 ```{r Fig. S6: regressions, echo = F, include = T}
 library(pryr)
-#percent col vs sat
+
 bac_meta_alpha$SoilP <- as.numeric(bac_meta_alpha$SoilP)
 bac_meta_alpha$SoilN <- as.numeric(bac_meta_alpha$SoilN)
 meta_top_bphyla$SoilP <- as.numeric(meta_top_bphyla$SoilP)
@@ -2269,9 +2383,9 @@ p4.3 %<a-% {
 
 a1pts <- bac_pcoa.pts[ , 1]
 
-regnat.p5.1 <- lm(a1pts[grepl("Nat", rownames(pcoa.pts))] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
+regnat.p5.1 <- lm(a1pts[grepl("Nat", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p4.1)
-reginv.p5.1 <- lm(a1pts[grepl("Inv", rownames(pcoa.pts))] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Inv"])
+reginv.p5.1 <- lm(a1pts[grepl("Inv", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Inv"])
 summary(reginv.p5.1)
 
 
@@ -2285,9 +2399,9 @@ p5.1 %<a-% {
 
 #PCoA Scores (Axis 1) vs P
 
-regnat.p5.2 <- lm(a1pts[grepl("Nat", rownames(pcoa.pts))] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
+regnat.p5.2 <- lm(a1pts[grepl("Nat", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p5.2)
-reginv.p5.2 <- lm(a1pts[grepl("Inv", rownames(pcoa.pts))] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Inv"])
+reginv.p5.2 <- lm(a1pts[grepl("Inv", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Inv"])
 summary(reginv.p5.2)
 
 
@@ -2301,9 +2415,9 @@ p5.2 %<a-% {
 
 #PCoA Scores (Axis 1) vs N
 
-regnat.p5.3 <- lm(a1pts[grepl("Nat", rownames(pcoa.pts))] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
+regnat.p5.3 <- lm(a1pts[grepl("Nat", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p5.3)
-reginv.p5.3 <- lm(a1pts[grepl("Inv", rownames(pcoa.pts))] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Inv"])
+reginv.p5.3 <- lm(a1pts[grepl("Inv", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Inv"])
 summary(reginv.p5.3)
 
 
@@ -2319,9 +2433,9 @@ p5.3 %<a-% {
 
 a2pts <- bac_pcoa.pts[ , 2]
 
-regnat.p6.1 <- lm(a2pts[grepl("Nat", rownames(pcoa.pts))] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
+regnat.p6.1 <- lm(a2pts[grepl("Nat", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p6.1)
-reginv.p6.1 <- lm(a2pts[grepl("Inv", rownames(pcoa.pts))] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Inv"])
+reginv.p6.1 <- lm(a2pts[grepl("Inv", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Inv"])
 summary(reginv.p6.1)
 
 
@@ -2335,9 +2449,9 @@ p6.1 %<a-% {
 
 #PCoA Scores (Axis 2) vs P
 
-regnat.p6.2 <- lm(a2pts[grepl("Nat", rownames(pcoa.pts))] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
+regnat.p6.2 <- lm(a2pts[grepl("Nat", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p6.2)
-reginv.p6.2 <- lm(a2pts[grepl("Inv", rownames(pcoa.pts))] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Inv"])
+reginv.p6.2 <- lm(a2pts[grepl("Inv", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Inv"])
 summary(reginv.p6.2)
 
 
@@ -2351,9 +2465,9 @@ p6.2 %<a-% {
 
 #PCoA Scores (Axis 2) vs N
 
-regnat.p6.3 <- lm(a2pts[grepl("Nat", rownames(pcoa.pts))] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
+regnat.p6.3 <- lm(a2pts[grepl("Nat", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p6.3)
-reginv.p6.3 <- lm(a2pts[grepl("Inv", rownames(pcoa.pts))] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Inv"])
+reginv.p6.3 <- lm(a2pts[grepl("Inv", rownames(bac_pcoa.pts))] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Inv"])
 summary(reginv.p6.3)
 
 
@@ -2397,7 +2511,7 @@ p7.2 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Asco Rel. Abund vs N
+#Proteo Rel. Abund vs N
 
 regnat.p7.3 <- lm(meta_top_bphyla$Proteobacteria[meta_top_bphyla$Lineage == "Nat"] ~ meta_top_bphyla$SoilN[meta_top_bphyla$Lineage == "Nat"])
 summary(regnat.p7.3)
@@ -2413,7 +2527,7 @@ p7.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Path Rel. Abund vs. sat
+#Bacteriodetes Rel. Abund vs. sat
 
 regnat.p8.1 <- lm(meta_top_bphyla$Bacteroidetes[meta_top_bphyla$Lineage == "Nat"] ~ meta_top_bphyla$Sat[meta_top_bphyla$Lineage == "Nat"])
 summary(regnat.p8.1)
@@ -2429,7 +2543,7 @@ p8.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Path Rel. Abund vs P
+#Bacteriodetes Rel. Abund vs P
 
 regnat.p8.2 <- lm(meta_top_bphyla$Bacteroidetes[meta_top_bphyla$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[meta_top_bphyla$Lineage == "Nat"])
 summary(regnat.p8.2)
@@ -2445,7 +2559,7 @@ p8.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Path Rel. Abund vs N
+#Bacteriodetes Rel. Abund vs N
 
 regnat.p8.3 <- lm(meta_top_bphyla$Bacteroidetes[meta_top_bphyla$Lineage == "Nat"] ~ meta_top_bphyla$SoilN[meta_top_bphyla$Lineage == "Nat"])
 summary(regnat.p8.3)
@@ -2461,7 +2575,7 @@ p8.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Sap Rel. Abund vs Sat
+#Firmicutes Rel. Abund vs Sat
 
 regnat.p9.1 <- lm(meta_top_bphyla$Firmicutes[meta_top_bphyla$Lineage == "Nat"] ~ meta_top_bphyla$Sat[meta_top_bphyla$Lineage == "Nat"])
 summary(regnat.p9.1)
@@ -2476,7 +2590,7 @@ p9.1 %<a-% {
   # abline(reginv.p9.1)
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
-#Sap Rel. Abund vs P
+#Firmicutes Rel. Abund vs P
 
 regnat.p9.2 <-lm(meta_top_bphyla$Firmicutes[meta_top_bphyla$Lineage == "Nat"] ~ meta_top_bphyla$SoilP[meta_top_bphyla$Lineage == "Nat"])
 summary(regnat.p9.2)
@@ -2492,7 +2606,7 @@ p9.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Asco Rel. Abund vs N
+#Firmicutes Rel. Abund vs N
 
 regnat.p9.3 <- lm(meta_top_bphyla$Firmicutes[meta_top_bphyla$Lineage == "Nat"] ~ meta_top_bphyla$SoilN[meta_top_bphyla$Lineage == "Nat"])
 summary(regnat.p9.3)
@@ -2524,7 +2638,7 @@ p10.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Gib Rel. Abund vs P
+#actino Abund vs P
 
 regnat.p10.2 <- lm(meta_top_bphyla$Actinobacteria[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p10.2)
@@ -2540,7 +2654,7 @@ p10.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Gib Rel. Abund vs N
+#actino Rel. Abund vs N
 
 regnat.p10.3 <- lm(meta_top_bphyla$Actinobacteria[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p10.3)
@@ -2556,7 +2670,7 @@ p10.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs. sat
+#Pseudomonas Rel. Abund vs. sat
 
 regnat.p11.1 <- lm(topgenus_ra$Pseudomonas[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p11.1)
@@ -2572,7 +2686,7 @@ p11.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs P
+#Pseudomonas Rel. Abund vs P
 
 regnat.p11.2 <-lm(topgenus_ra$Pseudomonas[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p11.2)
@@ -2588,7 +2702,7 @@ p11.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs N
+#Pseudomonas Rel. Abund vs N
 
 regnat.p11.3 <- lm(topgenus_ra$Pseudomonas[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p11.3)
@@ -2604,7 +2718,7 @@ p11.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs. sat
+#Flavobacterium Rel. Abund vs. sat
 
 regnat.p12.1 <- lm(topgenus_ra$Flavobacterium[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p12.1)
@@ -2620,7 +2734,7 @@ p12.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs P
+#Flavobacterium Rel. Abund vs P
 
 regnat.p12.2 <-lm(topgenus_ra$Flavobacterium[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p12.2)
@@ -2636,7 +2750,7 @@ p12.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs N
+#Flavobacterium Rel. Abund vs N
 
 regnat.p12.3 <- lm(topgenus_ra$Flavobacterium[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p12.3)
@@ -2652,7 +2766,7 @@ p12.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs. sat
+#Janthino Rel. Abund vs. sat
 
 regnat.p13.1 <- lm(topgenus_ra$Janthinobacterium[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p13.1)
@@ -2668,7 +2782,7 @@ p13.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs P
+#Janthino Rel. Abund vs P
 
 regnat.p13.2 <-lm(topgenus_ra$Janthinobacterium[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p13.2)
@@ -2684,7 +2798,7 @@ p13.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs N
+#Janthino Rel. Abund vs N
 
 regnat.p13.3 <- lm(topgenus_ra$Janthinobacterium[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p13.3)
@@ -2700,7 +2814,7 @@ p13.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs. sat
+#Rhizobium Rel. Abund vs. sat
 
 regnat.p14.1 <- lm(topgenus_ra$Rhizobium[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p14.1)
@@ -2716,7 +2830,7 @@ p14.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs P
+#Rhizobium Rel. Abund vs P
 
 regnat.p14.2 <-lm(topgenus_ra$Rhizobium[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p14.2)
@@ -2732,7 +2846,7 @@ p14.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs N
+#Rhizobium Rel. Abund vs N
 
 regnat.p14.3 <- lm(topgenus_ra$Rhizobium[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p14.3)
@@ -2749,7 +2863,7 @@ p14.3 %<a-% {
 }
 
 
-#Stag Rel. Abund vs. sat
+#Duganella Rel. Abund vs. sat
 
 regnat.p15.1 <- lm(topgenus_ra$Duganella[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p15.1)
@@ -2765,7 +2879,7 @@ p15.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs P
+#Duganella Rel. Abund vs P
 
 regnat.p15.2 <-lm(topgenus_ra$Duganella[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p15.2)
@@ -2781,7 +2895,7 @@ p15.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs N
+#Duganella Rel. Abund vs N
 
 regnat.p15.3 <- lm(topgenus_ra$Duganella[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p15.3)
@@ -2797,7 +2911,7 @@ p15.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs. sat
+#Trichococcus Rel. Abund vs. sat
 
 regnat.p16.1 <- lm(topgenus_ra$Trichococcus[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p16.1)
@@ -2813,7 +2927,7 @@ p16.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs P
+#Trichococcus Rel. Abund vs P
 
 regnat.p16.2 <-lm(topgenus_ra$Trichococcus[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p16.2)
@@ -2829,7 +2943,7 @@ p16.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs N
+#Trichococcus Rel. Abund vs N
 
 regnat.p16.3 <- lm(topgenus_ra$Trichococcus[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p16.3)
@@ -2845,7 +2959,7 @@ p16.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs. sat
+#Aeromonas Rel. Abund vs. sat
 
 regnat.p17.1 <- lm(topgenus_ra$Aeromonas[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p17.1)
@@ -2861,7 +2975,7 @@ p17.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs P
+#Aeromonas Rel. Abund vs P
 
 regnat.p17.2 <-lm(topgenus_ra$Aeromonas[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p17.2)
@@ -2877,7 +2991,7 @@ p17.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs N
+#Aeromonas Rel. Abund vs N
 
 regnat.p17.3 <- lm(topgenus_ra$Aeromonas[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p17.3)
@@ -2893,7 +3007,7 @@ p17.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs. sat
+#Aerobes Rel. Abund vs. sat
 
 regnat.p18.1 <- lm(bbase$Aerobic[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p18.1)
@@ -2909,7 +3023,7 @@ p18.1 %<a-% {
 # #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs P
+#Aerobes Rel. Abund vs P
 
 regnat.p18.2 <-lm(bbase$Aerobic[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p18.2)
@@ -2925,7 +3039,7 @@ p18.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs N
+#Aerobes Rel. Abund vs N
 
 regnat.p18.3 <- lm(bbase$Aerobic[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p18.3)
@@ -2941,7 +3055,7 @@ p18.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs. sat
+#Facan Rel. Abund vs. sat
 
 regnat.p19.1 <- lm(bbase$Facultatively_Anaerobic[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p19.1)
@@ -2957,7 +3071,7 @@ p19.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs P
+#Facan Rel. Abund vs P
 
 regnat.p19.2 <-lm(bbase$Facultatively_Anaerobic[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p19.2)
@@ -2973,7 +3087,7 @@ p19.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs N
+#Facan Rel. Abund vs N
 
 regnat.p19.3 <- lm(bbase$Facultatively_Anaerobic[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p19.3)
@@ -2989,7 +3103,7 @@ p19.3 %<a-% {
   legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs. sat
+#Anaerobe Rel. Abund vs. sat
 
 regnat.p20.1 <- lm(bbase$Anaerobic[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$Sat[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p20.1)
@@ -3005,7 +3119,7 @@ p20.1 %<a-% {
 #  legend("bottomright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs P
+#Anaerobe Rel. Abund vs P
 
 regnat.p20.2 <-lm(bbase$Anaerobic[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilP[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p20.2)
@@ -3021,7 +3135,7 @@ p20.2 %<a-% {
 #  legend("topright", c("Non-native", "Native"), pch = c(16, 1))
 }
 
-#Stag Rel. Abund vs N
+#Anaerobe Rel. Abund vs N
 
 regnat.p20.3 <- lm(bbase$Anaerobic[bac_meta_alpha$Lineage == "Nat"] ~ bac_meta_alpha$SoilN[bac_meta_alpha$Lineage == "Nat"])
 summary(regnat.p20.3)
